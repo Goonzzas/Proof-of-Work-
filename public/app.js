@@ -36,6 +36,7 @@ const btnSimStop = document.getElementById('btn-sim-stop');
 const btnRunBenchmark = document.getElementById('btn-run-benchmark');
 const benchmarkChartImg = document.getElementById('benchmark-chart-img');
 const benchmarkStatusBox = document.getElementById('benchmark-status-box');
+const benchmarkActivitySummary = document.getElementById('benchmark-activity-summary');
 const chartLightbox = document.getElementById('chart-lightbox');
 const chartLightboxContent = document.getElementById('chart-lightbox-content');
 const chartLightboxClose = document.getElementById('chart-lightbox-close');
@@ -505,6 +506,21 @@ btnRunBenchmark.addEventListener('click', async () => {
       logClient('✅ Benchmark criptográfico Python completado con éxito! Gráficos Matplotlib actualizados.', 'success');
       benchmarkChartImg.style.display = 'inline-block';
       benchmarkChartImg.src = data.chartUrl;
+      const activity = data.activityDuringRun;
+      if (activity) {
+        benchmarkActivitySummary.replaceChildren();
+        const heading = document.createElement('strong');
+        heading.textContent = 'Actividad real durante el benchmark';
+        const details = document.createElement('div');
+        details.textContent = `${activity.durationSeconds}s · ${activity.requestsObserved} solicitudes HTTP · ` +
+          `${activity.verifiedPoWs} PoW aceptados · ${activity.rejectedRequests} rechazados · ` +
+          `${activity.replayAttempts} replays · pico ${activity.peakRequestsPerSecond} req/s · ` +
+          `dificultad ${activity.difficultiesObserved.join(', ') || 'sin datos'}`;
+        const note = document.createElement('div');
+        note.textContent = 'Incluye lo que ocurrió mientras corría: usa «Seguro» o inicia una simulación de ataque durante ese intervalo para verlo reflejado.';
+        benchmarkActivitySummary.append(heading, details, note);
+        benchmarkActivitySummary.style.display = 'block';
+      }
     } else {
       logClient(`❌ Error en benchmark Python: ${data.error}`, 'error');
     }
