@@ -316,6 +316,99 @@
       height: auto;
       border-radius: 6px;
       border: 1px solid var(--border-color);
+      cursor: zoom-in;
+    }
+
+    .chart-expandable {
+      cursor: zoom-in;
+    }
+
+    .chart-hint {
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      margin: 8px 0 0;
+    }
+
+    .realtime-chart-wrap {
+      position: relative;
+    }
+
+    .realtime-chart-tooltip {
+      position: absolute;
+      z-index: 2;
+      display: none;
+      pointer-events: none;
+      padding: 8px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 7px;
+      background: #0f172a;
+      color: var(--text-primary);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      white-space: nowrap;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+    }
+
+    .realtime-chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin: 8px 2px 0;
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+    }
+
+    .legend-rps {
+      color: #f87171;
+    }
+
+    .legend-difficulty {
+      color: #c084fc;
+    }
+
+    .chart-lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 56px 24px 24px;
+      background: rgba(2, 6, 23, 0.94);
+    }
+
+    .chart-lightbox.is-open {
+      display: flex;
+    }
+
+    .chart-lightbox img,
+    .chart-lightbox canvas {
+      display: block;
+      max-width: 96vw;
+      max-height: 88vh;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: #020617;
+    }
+
+    .chart-lightbox-close {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 9px 13px;
+      color: var(--text-primary);
+      background: #0f172a;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    .chart-lightbox-close:hover {
+      background: #1e293b;
     }
   </style>
 </head>
@@ -435,9 +528,15 @@
           <div style="font-size:0.85rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">
             📈 Gráfico de Carga en Tiempo Real (Canvas)
           </div>
-          <div style="background:#020617; border:1px solid var(--border-color); border-radius:8px; padding:10px;">
-            <canvas id="realtime-canvas" style="width:100%; height:120px; display:block;"></canvas>
+          <div class="realtime-chart-wrap" style="background:#020617; border:1px solid var(--border-color); border-radius:8px; padding:10px;">
+            <canvas id="realtime-canvas" class="chart-expandable" title="Ampliar gráfica" role="button" tabindex="0" aria-label="Gráfico de solicitudes por segundo y dificultad PoW a lo largo del tiempo" style="width:100%; height:210px; display:block;"></canvas>
+            <div id="realtime-chart-tooltip" class="realtime-chart-tooltip" aria-live="polite"></div>
           </div>
+          <div class="realtime-chart-legend" aria-label="Leyenda del gráfico">
+            <span class="legend-rps">━ Solicitudes por segundo (eje izquierdo)</span>
+            <span class="legend-difficulty">┄ Dificultad en ceros hex (eje derecho)</span>
+          </div>
+          <p class="chart-hint">Eje X: hora de cada medición · Pasa el cursor para ver los valores · Haz clic para ampliar</p>
         </div>
       </div>
 
@@ -484,8 +583,9 @@
           </div>
 
           <div class="chart-container-box">
-            <img id="benchmark-chart-img" src="/pow_performance_benchmark.png" alt="Gráficos de Benchmark PoW Matplotlib" class="chart-img" onerror="this.style.display='none'">
+            <img id="benchmark-chart-img" src="/pow_performance_benchmark.png" alt="Gráficos de Benchmark PoW Matplotlib" class="chart-img chart-expandable" title="Ampliar gráfica" role="button" tabindex="0" aria-label="Ampliar gráficos del benchmark" onerror="this.style.display='none'">
           </div>
+          <p class="chart-hint">Haz clic en la gráfica para verla ampliada · Esc para cerrar</p>
         </div>
 
         <div style="margin-top:16px;">
@@ -498,6 +598,11 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <div id="chart-lightbox" class="chart-lightbox" role="dialog" aria-modal="true" aria-label="Gráfica ampliada">
+    <button id="chart-lightbox-close" class="chart-lightbox-close" type="button" aria-label="Cerrar gráfica ampliada">✕ Cerrar</button>
+    <div id="chart-lightbox-content"></div>
   </div>
 
   <script src="app.js"></script>
