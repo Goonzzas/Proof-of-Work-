@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enterprise PoW Rate Limiter v7 & Crypto Benchmark Suite</title>
+  <style>
+    :root {
+      --bg-main: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-hover: #334155;
+      --border-color: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent-blue: #38bdf8;
+      --accent-green: #34d399;
+      --accent-warning: #fbbf24;
+      --accent-danger: #f87171;
+      --accent-purple: #c084fc;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 24px;
+    }
+
+    .header-title h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-title p {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #064e3b;
+      color: var(--accent-green);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid #047857;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--accent-green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+
+    /* AUTOTUNING BANNER */
+    .autotune-banner {
+      background: #064e3b;
+      border: 1px solid #047857;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.3s ease;
+    }
+
+    .autotune-banner.alert-warning {
+      background: #78350f;
+      border-color: #b45309;
+    }
+
+    .autotune-banner.alert-danger {
+      background: #7f1d1d;
+      border-color: #b91c1c;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.85; }
+    }
+
+    .autotune-info {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .autotune-icon {
+      font-size: 1.6rem;
+    }
+
+    .autotune-text {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .autotune-sub {
+      font-size: 0.82rem;
+      opacity: 0.9;
+      margin-top: 2px;
+    }
+
+    /* METRICS GRID */
+    .grid-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 18px;
+    }
+
+    .metric-card .label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .metric-card .value {
+      font-size: 1.7rem;
+      font-weight: 800;
+      margin-top: 6px;
+      color: var(--accent-blue);
+    }
+
+    .metric-card .subtext {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* MAIN TWO COLUMN GRID */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .card-header {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .btn {
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary { background-color: #2563eb; color: white; }
+    .btn-primary:hover { background-color: #1d4ed8; }
+    .btn-danger { background-color: #dc2626; color: white; }
+    .btn-danger:hover { background-color: #b91c1c; }
+    .btn-secondary { background-color: #475569; color: white; }
+    .btn-secondary:hover { background-color: #334155; }
+    .btn-warning { background-color: #d97706; color: white; }
+    .btn-warning:hover { background-color: #b45309; }
+    .btn-purple { background-color: #7c3aed; color: white; }
+    .btn-purple:hover { background-color: #6d28d9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .worker-status-box {
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+    }
+
+    .stat-row:last-child { margin-bottom: 0; }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: #334155;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+      transition: width 0.15s ease;
+    }
+
+    .log-terminal {
+      background: #020617;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.82rem;
+      height: 200px;
+      overflow-y: auto;
+      color: #38bdf8;
+    }
+
+    .log-line { margin-bottom: 6px; line-height: 1.4; }
+    .log-line.error { color: var(--accent-danger); }
+    .log-line.success { color: var(--accent-green); }
+    .log-line.warn { color: var(--accent-warning); }
+
+    .control-group { margin-bottom: 16px; }
+    .control-group label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    select {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    .chart-container-box {
+      margin-top: 20px;
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .chart-img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div class="header-title">
+        <h1>🛡️ Proof-of-Work Rate Limiter v7</h1>
+        <p>Servidor Node.js (High-Fluidity I/O) + Algoritmos Hash & Benchmark en Python 3.12</p>
+      </div>
+      <div class="badge-status">
+        <div class="status-dot"></div>
+        <span>Middleware Activo (Node.js + Python)</span>
+      </div>
+    </header>
+
+    <!-- BANNER DINÁMICO DE AUTOTUNING -->
+    <div class="autotune-banner" id="autotune-banner">
+      <div class="autotune-info">
+        <div class="autotune-icon" id="autotune-icon">🟢</div>
+        <div>
+          <div class="autotune-text" id="autotune-text">Estado Normal: Dificultad en 4 ceros hex (16 bits)</div>
+          <div class="autotune-sub" id="autotune-sub">Tráfico Estable - Cómputo cliente aprox: ~0.05s</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- METRICS GRID -->
+    <div class="grid-metrics">
+      <div class="metric-card">
+        <div class="label">Peticiones / Seg</div>
+        <div class="value" id="metric-rps">0.0</div>
+        <div class="subtext">Carga servidor (10s)</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">% CPU Ahorrada</div>
+        <div class="value" style="color:var(--accent-green)" id="metric-cpu-saved">0.0%</div>
+        <div class="subtext">Carga evitada en backend</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">% Rechazados</div>
+        <div class="value" style="color:var(--accent-warning)" id="metric-rejected-pct">0.0%</div>
+        <div class="subtext">Botnets o sin PoW</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Replay Prevenidos</div>
+        <div class="value" style="color:var(--accent-purple)" id="metric-replay">0</div>
+        <div class="subtext">Ataques de reuso</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">PoWs Verificados</div>
+        <div class="value" style="color:var(--accent-green)" id="metric-verified">0</div>
+        <div class="subtext">Autorizados OK</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Bloqueados</div>
+        <div class="value" style="color:var(--accent-danger)" id="metric-rejected">0</div>
+        <div class="subtext">Bloqueos totales</div>
+      </div>
+    </div>
+
+    <!-- MAIN TWO COLUMN GRID -->
+    <div class="main-grid">
+      <!-- PANEL IZQUIERDO: DEMOSTRADOR DE CLIENTE & TELEMETRÍA -->
+      <div class="card">
+        <div class="card-header">
+          <span>🚀 Pruebas de Acceso a Endpoint Protegido</span>
+          <span style="font-size:0.8rem; font-weight:normal; color:var(--text-secondary)"><code>POST /api/heavy-report</code></span>
+        </div>
+
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
+          Simula solicitudes al middleware de Node.js con resolver criptográfico en Web Worker.
+        </p>
+
+        <div class="btn-group">
+          <button class="btn btn-danger" id="btn-no-pow">❌ Sin PoW (Rechazo 428)</button>
+          <button class="btn btn-primary" id="btn-with-pow">⚡ Seguro (Web Worker JS)</button>
+          <button class="btn btn-warning" id="btn-replay-attack">🔄 Probar Replay Attack</button>
+        </div>
+
+        <div class="worker-status-box">
+          <div style="font-weight:700; font-size:0.9rem; margin-bottom:10px; color:var(--accent-blue);">
+            💻 Estado del Resolver Cliente (Web Worker)
+          </div>
+          <div class="stat-row">
+            <span style="color:var(--text-secondary)">Estado Hilo:</span>
+            <span id="worker-state" style="font-weight:600">Inactivo</span>
+          </div>
+          <div class="stat-row">
+            <span style="color:var(--text-secondary)">Hashes Evaluados:</span>
+            <span id="worker-hashes" style="font-family:monospace">0</span>
+          </div>
+          <div class="stat-row">
+            <span style="color:var(--text-secondary)">Velocidad de Minado:</span>
+            <span id="worker-hashrate" style="font-family:monospace">0 H/s</span>
+          </div>
+          <div class="stat-row">
+            <span style="color:var(--text-secondary)">Tiempo Cliente:</span>
+            <span id="worker-time" style="font-family:monospace">0 ms</span>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="progress-fill"></div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <div style="font-size:0.85rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">
+            Consola del Cliente (Navegador)
+          </div>
+          <div class="log-terminal" id="client-terminal">
+            <div class="log-line">[SISTEMA] Dashboard inicializado en Node.js + Python PoW Crypto Engine.</div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <div style="font-size:0.85rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">
+            📈 Gráfico de Carga en Tiempo Real (Canvas)
+          </div>
+          <div style="background:#020617; border:1px solid var(--border-color); border-radius:8px; padding:10px;">
+            <canvas id="realtime-canvas" style="width:100%; height:120px; display:block;"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL DERECHO: SIMULADOR DDOS & SUITE DE BENCHMARK PYTHON -->
+      <div class="card">
+        <div class="card-header">
+          <span>⚙️ Calibración Dinámica & Benchmark Python</span>
+        </div>
+
+        <div class="control-group">
+          <label for="select-difficulty">Calibración de Dificultad Servidor:</label>
+          <select id="select-difficulty">
+            <option value="auto">🤖 Dinámico Automático (Seguro según RPS)</option>
+            <option value="4">Manual: 4 ceros hex (16 bits) ~ 0.05s de cómputo</option>
+            <option value="5">Manual: 5 ceros hex (20 bits) ~ 1.0s de cómputo</option>
+            <option value="6">Manual: 6 ceros hex (24 bits) ~ 15.0s (Bajo Ataque)</option>
+          </select>
+        </div>
+
+        <div style="margin-top:16px;">
+          <div style="font-weight:700; font-size:0.9rem; margin-bottom:8px;">
+            💥 Simulación de Ataques Botnet / DDoS
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-secondary" id="btn-sim-nopow">Ataque Directo Sin PoW</button>
+            <button class="btn btn-danger" id="btn-sim-masivo">Ataque Botnet Masivo</button>
+            <button class="btn btn-warning" id="btn-sim-mixto">Ataque Mixto (Legítimo + Bots)</button>
+            <button class="btn btn-secondary" id="btn-sim-stop" disabled>🛑 Detener Ataque</button>
+          </div>
+        </div>
+
+        <div style="margin-top:20px; border-top:1px solid var(--border-color); padding-top:16px;">
+          <div style="font-weight:700; font-size:0.95rem; margin-bottom:8px; color:var(--accent-purple); display:flex; justify-content:space-between; align-items:center;">
+            <span>📊 Benchmark Criptográfico (Python + Matplotlib)</span>
+            <a href="/api/benchmark/csv" target="_blank" style="color:var(--accent-blue); font-size:0.8rem; text-decoration:none;">📥 Descargar CSV</a>
+          </div>
+          <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:12px;">
+            Ejecuta la suite criptográfica de Python (<code>run_benchmark.py</code> + <code>plot_benchmark.py</code>) para generar los gráficos de asimetría.
+          </p>
+          <button class="btn btn-purple" id="btn-run-benchmark">🚀 Ejecutar Benchmark Python en Vivo</button>
+
+          <div id="benchmark-status-box" style="display:none; margin-top:10px; font-size:0.85rem; color:var(--accent-warning);">
+            ⏳ Ejecutando algoritmos PoW en Python y generando gráfica con Matplotlib...
+          </div>
+
+          <div class="chart-container-box">
+            <img id="benchmark-chart-img" src="/pow_performance_benchmark.png" alt="Gráficos de Benchmark PoW Matplotlib" class="chart-img" onerror="this.style.display='none'">
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <div style="font-size:0.85rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">
+            📋 Registro de Auditoría del Servidor (Server Event Logs)
+          </div>
+          <div class="log-terminal" id="server-logs-terminal" style="height:140px;">
+            <div class="log-line">[SYS] Servidor Node.js iniciado. Esperando eventos de auditoría...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

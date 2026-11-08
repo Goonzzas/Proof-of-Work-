@@ -1,0 +1,15 @@
+{
+  "name": "pow-rate-limiter",
+  "version": "7.0.0",
+  "description": "Sistema de Rate Limiting y Anti-DDoS basado en Proof-of-Work (Hashcash) para APIs Empresariales (Arquitectura Híbrida Node.js + Python 3.12)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "benchmark": "python3 run_benchmark.py && python3 plot_benchmark.py",
+    "test": "node test_e2e.js && python3 test_e2e.py"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
+  }
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "bits": 12,
+    "hexZeros": 3,
+    "expectedHashes": 4096,
+    "avgHashes": 2861,
+    "avgClientMs": 11.08,
+    "avgServerMs": 0.0109,
+    "hashRate": 258216,
+    "asymmetryRatio": 1016
+  },
+  {
+    "bits": 14,
+    "hexZeros": 3,
+    "expectedHashes": 16384,
+    "avgHashes": 14713,
+    "avgClientMs": 55.13,
+    "avgServerMs": 0.0076,
+    "hashRate": 266883,
+    "asymmetryRatio": 7253
+  },
+  {
+    "bits": 16,
+    "hexZeros": 4,
+    "expectedHashes": 65536,
+    "avgHashes": 66733,
+    "avgClientMs": 157.12,
+    "avgServerMs": 0.0055,
+    "hashRate": 424726,
+    "asymmetryRatio": 28567
+  },
+  {
+    "bits": 18,
+    "hexZeros": 4,
+    "expectedHashes": 262144,
+    "avgHashes": 274539,
+    "avgClientMs": 623.08,
+    "avgServerMs": 0.0075,
+    "hashRate": 440617,
+    "asymmetryRatio": 83077
+  },
+  {
+    "bits": 20,
+    "hexZeros": 5,
+    "expectedHashes": 1048576,
+    "avgHashes": 1079705,
+    "avgClientMs": 2617.05,
+    "avgServerMs": 0.0067,
+    "hashRate": 412566,
+    "asymmetryRatio": 390604
+  },
+  {
+    "bits": 22,
+    "hexZeros": 5,
+    "expectedHashes": 4194304,
+    "avgHashes": 981982,
+    "avgClientMs": 2597.76,
+    "avgServerMs": 0.0085,
+    "hashRate": 378011,
+    "asymmetryRatio": 305618
+  }
+]
