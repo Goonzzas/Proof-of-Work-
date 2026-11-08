@@ -19,6 +19,7 @@ const SECRET_KEY = crypto.randomBytes(32).toString('hex'); // Llave privada de f
 class TrafficManager {
   constructor() {
     this.requestHistory = [];
+    this.totalRequests = 0;
     this.manualDifficulty = null; // Sobrescritura manual
     this.totalVerified = 0;
     this.totalRejected = 0;
@@ -30,6 +31,7 @@ class TrafficManager {
   }
 
   recordRequest() {
+    this.totalRequests++;
     const now = Date.now();
     this.requestHistory.push(now);
     // Conservar solo solicitudes de los últimos 10 segundos
@@ -322,11 +324,34 @@ const server = http.createServer((req, res) => {
   // API 5: Ejecución de Benchmark Criptográfico con Módulos de Python
   if (req.method === 'POST' && pathname === '/api/benchmark/run') {
     trafficManager.logEvent('BENCHMARK', 'Iniciando suite de pruebas criptográficas de PoW en Python...');
-    
-    // Comando para ejecutar los algoritmos PoW en Python y generar los gráficos con Matplotlib
-    const cmd = `python3 run_benchmark.py && python3 plot_benchmark.py`;
-    
-    exec(cmd, { cwd: __dirname }, (error, stdout, stderr) => {
+
+    // Registrar la actividad real del servidor mientras Python ejecuta el benchmark.
+    const startedAt = new Date().toISOString();
+    const baseline = {
+      requests: trafficManager.totalRequests,
+      verified: trafficManager.totalVerified,
+      rejected: trafficManager.totalRejected,
+      replayPrevented: trafficManager.totalReplayPrevented
+    };
+    const activitySamples = [];
+    const captureActivity = () => {
+      activitySamples.push({
+        time: new Date().toISOString(),
+        requestsPerSecond: trafficManager.getRequestsPerSecond(),
+        difficulty: trafficManager.getCurrentDifficulty(),
+        verified: trafficManager.totalVerified,
+        rejected: trafficManager.totalRejected,
+        replayPrevented: trafficManager.totalReplayPrevented
+      });
+    };
+    captureActivity();
+    const activityTimer = setInterval(captureActivity, 500);
+
+    // Primero medir PoW en Python; después incorporar la actividad capturada al informe.
+    exec('python3 run_benchmark.py', { cwd: __dirname }, (error, stdout, stderr) => {
+      clearInterval(activityTimer);
+      captureActivity();
+
       if (error) {
         console.error(`Error ejecutando benchmark Python: ${stderr || error.message}`);
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -334,23 +359,65 @@ const server = http.createServer((req, res) => {
         return;
       }
 
-      const jsonPath = path.join(__dirname, 'pow_benchmark_results.json');
-      let resultsJson = {};
-      if (fs.existsSync(jsonPath)) {
-        try {
-          resultsJson = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
-        } catch (e) {}
-      }
+      const finishedAt = new Date().toISOString();
+      const activityDuringRun = {
+        startedAt,
+        finishedAt,
+        durationSeconds: Math.round((Date.parse(finishedAt) - Date.parse(startedAt)) / 100) / 10,
+        requestsObserved: trafficManager.totalRequests - baseline.requests,
+        verifiedPoWs: trafficManager.totalVerified - baseline.verified,
+        rejectedRequests: trafficManager.totalRejected - baseline.rejected,
+        replayAttempts: trafficManager.totalReplayPrevented - baseline.replayPrevented,
+        peakRequestsPerSecond: Math.max(0, ...activitySamples.map(sample => sample.requestsPerSecond)),
+        difficultiesObserved: [...new Set(activitySamples.map(sample => sample.difficulty))],
+        samples: activitySamples
+      };
+      fs.writeFileSync(
+        path.join(__dirname, 'pow_benchmark_activity.json'),
+        JSON.stringify(activityDuringRun, null, 2),
+        'utf-8'
+      );
 
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({
-        success: true,
-        message: 'Benchmark criptográfico PoW ejecutado exitosamente con Python + Matplotlib.',
-        data: resultsJson,
-        csvUrl: '/api/benchmark/csv',
-        chartUrl: `/pow_performance_benchmark.png?t=${Date.now()}`
-      }));
+      exec('python3 plot_benchmark.py', { cwd: __dirname }, (plotError, plotStdout, plotStderr) => {
+        if (plotError) {
+          console.error(`Error generando gráfica del benchmark: ${plotStderr || plotError.message}`);
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: plotStderr || plotError.message }));
+          return;
+        }
+
+        const jsonPath = path.join(__dirname, 'pow_benchmark_results.json');
+        let resultsJson = {};
+        if (fs.existsSync(jsonPath)) {
+          try {
+            resultsJson = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+          } catch (e) {}
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: true,
+          message: 'Benchmark PoW ejecutado; actividad real del servidor capturada durante la medición.',
+          data: resultsJson,
+          activityDuringRun,
+          activityUrl: '/api/benchmark/activity',
+          csvUrl: '/api/benchmark/csv',
+          chartUrl: `/pow_performance_benchmark.png?t=${Date.now()}`
+        }));
+      });
     });
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/benchmark/activity') {
+    const activityPath = path.join(__dirname, 'pow_benchmark_activity.json');
+    if (fs.existsSync(activityPath)) {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(fs.readFileSync(activityPath, 'utf-8'));
+    } else {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Todavía no se ha ejecutado un benchmark.' }));
+    }
     return;
   }
 
