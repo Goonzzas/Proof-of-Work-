@@ -36,6 +36,56 @@ const btnSimStop = document.getElementById('btn-sim-stop');
 const btnRunBenchmark = document.getElementById('btn-run-benchmark');
 const benchmarkChartImg = document.getElementById('benchmark-chart-img');
 const benchmarkStatusBox = document.getElementById('benchmark-status-box');
+const chartLightbox = document.getElementById('chart-lightbox');
+const chartLightboxContent = document.getElementById('chart-lightbox-content');
+const chartLightboxClose = document.getElementById('chart-lightbox-close');
+
+function openChartLightbox(source) {
+  chartLightboxContent.replaceChildren();
+  let enlarged;
+
+  if (source instanceof HTMLCanvasElement) {
+    enlarged = document.createElement('canvas');
+    enlarged.width = source.width;
+    enlarged.height = source.height;
+    enlarged.setAttribute('aria-label', source.getAttribute('aria-label') || 'Gráfica ampliada');
+    enlarged.getContext('2d').drawImage(source, 0, 0);
+  } else {
+    enlarged = document.createElement('img');
+    enlarged.src = source.currentSrc || source.src;
+    enlarged.alt = source.alt;
+  }
+
+  chartLightboxContent.appendChild(enlarged);
+  chartLightbox.classList.add('is-open');
+  chartLightboxClose.focus();
+}
+
+function closeChartLightbox() {
+  chartLightbox.classList.remove('is-open');
+  chartLightboxContent.replaceChildren();
+}
+
+document.querySelectorAll('.chart-expandable').forEach(chart => {
+  chart.addEventListener('click', () => openChartLightbox(chart));
+  chart.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openChartLightbox(chart);
+    }
+  });
+});
+
+chartLightboxClose.addEventListener('click', closeChartLightbox);
+chartLightbox.addEventListener('click', event => {
+  if (event.target === chartLightbox) closeChartLightbox();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && chartLightbox.classList.contains('is-open')) {
+    closeChartLightbox();
+  }
+});
+
 
 const workerState = document.getElementById('worker-state');
 const workerHashes = document.getElementById('worker-hashes');
@@ -68,45 +118,110 @@ function updateServerLogs(logs) {
 // CANVAS REALTIME GRAPH
 const canvas = document.getElementById('realtime-canvas');
 const ctx = canvas.getContext('2d');
+const chartTooltip = document.getElementById('realtime-chart-tooltip');
+let realtimeSeries = [];
 
 function setupCanvas() {
   if (!canvas) return;
   const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * window.devicePixelRatio;
-  canvas.height = rect.height * window.devicePixelRatio;
-  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = Math.round(rect.width * ratio);
+  canvas.height = Math.round(rect.height * ratio);
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  if (realtimeSeries.length) renderRealtimeChart(realtimeSeries);
 }
 
 function renderRealtimeChart(timeSeries) {
-  if (!timeSeries || timeSeries.length < 2) return;
-  const width = canvas.width / window.devicePixelRatio;
-  const height = canvas.height / window.devicePixelRatio;
+  if (!timeSeries || !timeSeries.length) return;
+  realtimeSeries = timeSeries;
+  const ratio = window.devicePixelRatio || 1;
+  const width = canvas.width / ratio;
+  const height = canvas.height / ratio;
+  const pad = { left: 48, right: 48, top: 38, bottom: 32 };
+  const plotWidth = Math.max(1, width - pad.left - pad.right);
+  const plotHeight = Math.max(1, height - pad.top - pad.bottom);
+  const maxRps = Math.max(5, Math.ceil(Math.max(...timeSeries.map(d => Number(d.rps) || 0)) / 5) * 5);
+  const maxDifficulty = Math.max(6, ...timeSeries.map(d => Number(d.difficulty) || 0));
+  const xFor = index => pad.left + (timeSeries.length < 2 ? plotWidth / 2 : index * plotWidth / (timeSeries.length - 1));
+  const yForRps = value => pad.top + plotHeight - ((Number(value) || 0) / maxRps) * plotHeight;
+  const yForDifficulty = value => pad.top + plotHeight - ((Number(value) || 0) / maxDifficulty) * plotHeight;
 
   ctx.clearRect(0, 0, width, height);
+  ctx.font = '11px system-ui, sans-serif';
+  ctx.lineWidth = 1;
 
-  ctx.strokeStyle = '#334155';
-  ctx.lineWidth = 0.5;
-  for (let y = 0; y < height; y += 30) {
+  // Eje Y izquierdo: solicitudes por segundo; eje derecho: dificultad PoW.
+  for (let tick = 0; tick <= 4; tick++) {
+    const y = pad.top + plotHeight - (tick / 4) * plotHeight;
+    ctx.strokeStyle = '#263449';
     ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(width - pad.right, y);
     ctx.stroke();
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText((maxRps * tick / 4).toFixed(0), pad.left - 8, y);
+    ctx.textAlign = 'left';
+    ctx.fillText((maxDifficulty * tick / 4).toFixed(1), width - pad.right + 8, y);
   }
 
-  const maxRps = Math.max(15, ...timeSeries.map(d => d.rps || 0));
-  const stepX = width / (timeSeries.length - 1);
+  ctx.strokeStyle = '#64748b';
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, pad.top + plotHeight);
+  ctx.lineTo(width - pad.right, pad.top + plotHeight);
+  ctx.lineTo(width - pad.right, pad.top);
+  ctx.stroke();
+
+  // Etiquetas de ejes para identificar unidades y periodo.
+  ctx.fillStyle = '#cbd5e1';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Tiempo (hora)', pad.left + plotWidth / 2, height - 15);
+  ctx.save();
+  ctx.translate(12, pad.top + plotHeight / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Solicitudes por segundo', 0, 0);
+  ctx.restore();
+  ctx.save();
+  ctx.translate(width - 10, pad.top + plotHeight / 2);
+  ctx.rotate(Math.PI / 2);
+  ctx.fillText('Dificultad (ceros hex)', 0, 0);
+  ctx.restore();
+
+  const labelCount = Math.min(5, timeSeries.length);
+  for (let tick = 0; tick < labelCount; tick++) {
+    const index = labelCount === 1 ? 0 : Math.round(tick * (timeSeries.length - 1) / (labelCount - 1));
+    const x = xFor(index);
+    ctx.strokeStyle = '#64748b';
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top + plotHeight);
+    ctx.lineTo(x, pad.top + plotHeight + 4);
+    ctx.stroke();
+    ctx.fillStyle = '#94a3b8';
+    ctx.textAlign = tick === 0 ? 'left' : tick === labelCount - 1 ? 'right' : 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(String(timeSeries[index].time || ''), x, pad.top + plotHeight + 6);
+  }
 
   // 1. Dibujar curva RPS Total (Rojo)
   ctx.beginPath();
   ctx.strokeStyle = '#f87171';
   ctx.lineWidth = 2;
   timeSeries.forEach((pt, i) => {
-    const x = i * stepX;
-    const y = height - (pt.rps / maxRps) * (height - 30) - 15;
+    const x = xFor(i);
+    const y = yForRps(pt.rps);
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   });
   ctx.stroke();
+  timeSeries.forEach((pt, i) => {
+    ctx.beginPath();
+    ctx.arc(xFor(i), yForRps(pt.rps), 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#f87171';
+    ctx.fill();
+  });
 
   // 2. Dibujar Dificultad (Morado punteado)
   ctx.beginPath();
@@ -114,14 +229,38 @@ function renderRealtimeChart(timeSeries) {
   ctx.lineWidth = 2;
   ctx.setLineDash([4, 4]);
   timeSeries.forEach((pt, i) => {
-    const x = i * stepX;
-    const y = height - ((pt.difficulty * 10) / 70) * (height - 30) - 15;
+    const x = xFor(i);
+    const y = yForDifficulty(pt.difficulty);
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   });
   ctx.stroke();
   ctx.setLineDash([]);
+  timeSeries.forEach((pt, i) => {
+    ctx.beginPath();
+    ctx.arc(xFor(i), yForDifficulty(pt.difficulty), 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#c084fc';
+    ctx.fill();
+  });
 }
+
+canvas.addEventListener('mousemove', event => {
+  if (!realtimeSeries.length) return;
+  const rect = canvas.getBoundingClientRect();
+  const padLeft = 48;
+  const padRight = 48;
+  const plotWidth = Math.max(1, rect.width - padLeft - padRight);
+  const position = Math.max(0, Math.min(1, (event.clientX - rect.left - padLeft) / plotWidth));
+  const index = Math.round(position * Math.max(0, realtimeSeries.length - 1));
+  const point = realtimeSeries[index];
+  const wrapperRect = canvas.parentElement.getBoundingClientRect();
+  chartTooltip.innerHTML = `<strong>${point.time || 'Medición'}</strong><br>Solicitudes: ${Number(point.rps || 0).toFixed(1)} req/s<br>Dificultad: ${point.difficulty} ceros hex<br>Verificadas: ${point.verified ?? 0} · Rechazadas: ${point.rejected ?? 0}`;
+  chartTooltip.style.display = 'block';
+  chartTooltip.style.left = `${Math.min(Math.max(8, event.clientX - wrapperRect.left + 12), wrapperRect.width - 220)}px`;
+  chartTooltip.style.top = `${Math.max(8, event.clientY - wrapperRect.top - 12)}px`;
+});
+
+canvas.addEventListener('mouseleave', () => { chartTooltip.style.display = 'none'; });
 
 // POLLING DE MÉTRICAS
 async function fetchMetrics() {
