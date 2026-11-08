@@ -86,7 +86,6 @@ document.addEventListener('keydown', event => {
   }
 });
 
-
 const workerState = document.getElementById('worker-state');
 const workerHashes = document.getElementById('worker-hashes');
 const workerHashrate = document.getElementById('worker-hashrate');
@@ -343,6 +342,13 @@ btnWithPow.addEventListener('click', async () => {
         workerHashrate.textContent = `${msg.hashRate.toLocaleString()} H/s`;
         workerTime.textContent = `${msg.elapsedMs} ms (Cliente)`;
         progressFill.style.width = `${Math.min(90, 35 + (msg.hashesTested / 10000) * 50)}%`;
+      } else if (msg.type === 'ERROR') {
+        workerState.textContent = 'Error al minar';
+        workerState.style.color = 'var(--accent-danger)';
+        logClient(msg.message, 'error');
+        worker.terminate();
+        worker = null;
+        btnWithPow.disabled = false;
       } else if (msg.type === 'SUCCESS') {
         const { nonce, hash, totalTimeMs, totalHashes } = msg;
 
