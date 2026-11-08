@@ -329,7 +329,20 @@
       margin: 8px 0 0;
     }
 
-    .realtime-chart-wrap {
+    
+    .benchmark-activity-summary {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: #0f172a;
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      line-height: 1.6;
+    }
+    .benchmark-activity-summary strong { color: var(--text-primary); }
+.realtime-chart-wrap {
       position: relative;
     }
 
@@ -576,11 +589,13 @@
           <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:12px;">
             Ejecuta la suite criptográfica de Python (<code>run_benchmark.py</code> + <code>plot_benchmark.py</code>) para generar los gráficos de asimetría.
           </p>
+          <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:12px;">Si ejecutas «Seguro» o una simulación de ataque mientras corre, el resumen registrará esa actividad.</p>
           <button class="btn btn-purple" id="btn-run-benchmark">🚀 Ejecutar Benchmark Python en Vivo</button>
 
           <div id="benchmark-status-box" style="display:none; margin-top:10px; font-size:0.85rem; color:var(--accent-warning);">
-            ⏳ Ejecutando algoritmos PoW en Python y generando gráfica con Matplotlib...
+            ⏳ Midiendo PoW en Python y registrando la actividad real del servidor...
           </div>
+          <div id="benchmark-activity-summary" class="benchmark-activity-summary" role="status" aria-live="polite"></div>
 
           <div class="chart-container-box">
             <img id="benchmark-chart-img" src="/pow_performance_benchmark.png" alt="Gráficos de Benchmark PoW Matplotlib" class="chart-img chart-expandable" title="Ampliar gráfica" role="button" tabindex="0" aria-label="Ampliar gráficos del benchmark" onerror="this.style.display='none'">
