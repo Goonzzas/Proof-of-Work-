@@ -619,31 +619,64 @@ function renderDistributedBenchmarkResults(payload) {
   distributedBenchmarkStatus.textContent = `Resultados: ${results.results.length} configuraciones · ${envSummary || 'equipo local'}.`;
 }
 
-async function loadDistributedBenchmarkResults() {
+let distributedBenchmarkPolling = false;
+
+async function refreshDistributedBenchmarkStatus() {
   try {
     const response = await fetch('/api/benchmark/distributed/status');
     const state = await response.json();
-    if (state.results) renderDistributedBenchmarkResults(state.results);
-    if (state.running) distributedBenchmarkStatus.textContent = 'El benchmark distribuido está ejecutándose en el servidor…';
+    const results = state.results;
+    if (results?.results?.length) renderDistributedBenchmarkResults(results);
+    btnRunDistributedBenchmark.disabled = Boolean(state.running);
+    if (state.lastError) {
+      distributedBenchmarkStatus.textContent = `El benchmark no pudo completarse: ${state.lastError}`;
+    } else if (state.running) {
+      const completed = results?.completed ?? results?.results?.length ?? 0;
+      const total = results?.total ?? 9;
+      distributedBenchmarkStatus.textContent = `En ejecución: ${completed} de ${total} configuraciones listas. La tabla se actualiza al completar cada una.`;
+    } else if (results?.results?.length) {
+      distributedBenchmarkStatus.textContent = `Completado: ${results.results.length} configuraciones · se muestran los resultados más recientes.`;
+    } else {
+      distributedBenchmarkStatus.textContent = 'Aún no hay resultados. Pulsa «Ejecutar comparación Dask».';
+    }
+    return state;
   } catch (error) {
     distributedBenchmarkStatus.textContent = `No se pudo consultar el benchmark: ${error.message}`;
+    return null;
+  }
+}
+
+async function monitorDistributedBenchmark(logCompletion = false) {
+  if (distributedBenchmarkPolling) return;
+  distributedBenchmarkPolling = true;
+  try {
+    let state;
+    do {
+      state = await refreshDistributedBenchmarkStatus();
+      if (state?.running) await new Promise(resolve => setTimeout(resolve, 1000));
+    } while (state?.running);
+    if (logCompletion && state?.results?.results?.length && !state.lastError) {
+      logClient('✅ Benchmark distribuido Dask completado; resultados y validez de las pruebas actualizados.', 'success');
+    }
+  } finally {
+    distributedBenchmarkPolling = false;
+    btnRunDistributedBenchmark.disabled = false;
   }
 }
 
 btnRunDistributedBenchmark.addEventListener('click', async () => {
   btnRunDistributedBenchmark.disabled = true;
-  distributedBenchmarkStatus.textContent = 'Ejecutando 7 repeticiones por dificultad y configuración. Puede tardar un poco…';
+  distributedBenchmarkStatus.textContent = 'Iniciando benchmark Dask…';
   try {
     const response = await fetch('/api/benchmark/distributed/run', { method: 'POST' });
     const data = await response.json();
     if (!response.ok || !data.success) throw new Error(data.error || `HTTP ${response.status}`);
-    renderDistributedBenchmarkResults(data.results);
-    logClient('✅ Benchmark distribuido Dask completado; resultados y validez de las pruebas actualizados.', 'success');
+    await monitorDistributedBenchmark(true);
   } catch (error) {
     distributedBenchmarkStatus.textContent = `Falló el benchmark distribuido: ${error.message}`;
     logClient(`Error ejecutando benchmark Dask: ${error.message}`, 'error');
   } finally {
-    btnRunDistributedBenchmark.disabled = false;
+    btnRunDistributedBenchmark.disabled = distributedBenchmarkPolling;
   }
 });
 
@@ -654,4 +687,4 @@ setInterval(fetchMetrics, 1000);
 fetchMetrics();
 setInterval(fetchBlockchain, 1500);
 fetchBlockchain();
-loadDistributedBenchmarkResults();
+monitorDistributedBenchmark();

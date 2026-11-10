@@ -6,3 +6,5 @@ data/blockchain_events.json.tmp
 demo_blockchain.json
 demo_dask.json
 pow_benchmark_activity.json
+pow_distributed_benchmark_progress.json
+pow_distributed_benchmark_progress.json.tmp

@@ -79,9 +79,10 @@ del cronómetro y registra tiempos, hash rate, aceleración, eficiencia y valide
 de la prueba en `pow_distributed_benchmark.csv` y `.json`.
 
 También puedes iniciar esta evaluación desde el dashboard con el botón
-**«Ejecutar comparación Dask»**. La tabla muestra el tiempo secuencial y el
-distribuido, aceleración, eficiencia y validez de cada configuración. El CSV se
-puede descargar desde la misma sección.
+**«Ejecutar comparación Dask»**. La tabla se actualiza en vivo al terminar cada
+configuración y muestra los tiempos secuenciales y distribuidos, aceleración,
+eficiencia y validez. El CSV se puede descargar desde la misma sección. El
+progreso intermedio se escribe en `pow_distributed_benchmark_progress.json`.
 
 ### Componentes añadidos
 

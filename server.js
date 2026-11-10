@@ -25,6 +25,7 @@ let blockchainLastError = null;
 let blockchainDroppedEvents = 0;
 let distributedBenchmarkRunning = false;
 let distributedBenchmarkStartedAt = null;
+let distributedBenchmarkLastError = null;
 
 function queueBlockchainEvent(event) {
   if (blockchainQueue.length >= 500) {
@@ -537,14 +538,15 @@ const server = http.createServer((req, res) => {
 
   // API 7: Benchmark secuencial frente a minería distribuida con Dask
   if (req.method === 'GET' && pathname === '/api/benchmark/distributed/status') {
-    const resultsPath = path.join(__dirname, 'pow_distributed_benchmark.json');
+    const resultsPath = path.join(__dirname, distributedBenchmarkRunning
+      ? 'pow_distributed_benchmark_progress.json' : 'pow_distributed_benchmark.json');
     let results = null;
     if (fs.existsSync(resultsPath)) {
       try { results = JSON.parse(fs.readFileSync(resultsPath, 'utf8')); } catch (error) {}
     }
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ running: distributedBenchmarkRunning,
-      startedAt: distributedBenchmarkStartedAt, results }));
+      startedAt: distributedBenchmarkStartedAt, lastError: distributedBenchmarkLastError, results }));
     return;
   }
 
@@ -556,29 +558,31 @@ const server = http.createServer((req, res) => {
     }
     distributedBenchmarkRunning = true;
     distributedBenchmarkStartedAt = new Date().toISOString();
+    distributedBenchmarkLastError = null;
+    fs.writeFileSync(path.join(__dirname, 'pow_distributed_benchmark_progress.json'), JSON.stringify({
+      running: true, completed: 0, total: 9, results: [], started_at: distributedBenchmarkStartedAt
+    }), 'utf8');
     trafficManager.logEvent('DISTRIBUTED_BENCHMARK', 'Iniciando comparación de minería secuencial y Dask.');
     const script = path.join(__dirname, 'run_distributed_benchmark.py');
     execFile(PYTHON, [script], { cwd: __dirname, timeout: 15 * 60 * 1000, maxBuffer: 2 * 1024 * 1024 },
       (error, stdout, stderr) => {
         distributedBenchmarkRunning = false;
         if (error) {
+          distributedBenchmarkLastError = (stderr || error.message).slice(0, 2000);
           trafficManager.logEvent('DISTRIBUTED_BENCHMARK_FAILED', 'La comparación distribuida no pudo completarse.');
-          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify({ success: false, error: (stderr || error.message).slice(0, 2000) }));
           return;
         }
         try {
           const results = JSON.parse(fs.readFileSync(path.join(__dirname, 'pow_distributed_benchmark.json'), 'utf8'));
+          distributedBenchmarkLastError = null;
           trafficManager.logEvent('DISTRIBUTED_BENCHMARK_COMPLETE', 'Comparación distribuida completada correctamente.');
-          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify({ success: true, results,
-            csvUrl: '/api/benchmark/distributed.csv' }));
         } catch (parseError) {
+          distributedBenchmarkLastError = parseError.message;
           trafficManager.logEvent('DISTRIBUTED_BENCHMARK_FAILED', 'No se pudieron leer los resultados del benchmark.');
-          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify({ success: false, error: parseError.message }));
         }
       });
+    res.writeHead(202, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ success: true, started: true, message: 'Benchmark Dask iniciado.' }));
     return;
   }
 
