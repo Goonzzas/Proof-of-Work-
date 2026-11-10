@@ -100,23 +100,29 @@ async def set_difficulty(request: Request):
 
 @app.post("/api/benchmark/run")
 def run_crypto_benchmark():
-    bits_list, repeats = (12, 14, 16), 3
+    bits_list, repeats, verification_repeats = (12, 14, 16), 5, 250
     results = []
     for bits in bits_list:
         client_times, server_times, hashes = [], [], []
         for _ in range(repeats):
             challenge = generate_pow_challenge("vercel-benchmark", bits // 4)
             solved = solve_pow(challenge, bits)
-            verified = verify_pow(challenge, solved["nonce"], bits)
+            verify_started = time.perf_counter_ns()
+            verified = None
+            for _ in range(verification_repeats):
+                verified = verify_pow(challenge, solved["nonce"], bits)
+                if not verified["valid"]:
+                    raise RuntimeError(f"La solución PoW de {bits} bits no pasó la verificación.")
+            verify_elapsed_ms = (time.perf_counter_ns() - verify_started) / 1_000_000 / verification_repeats
             client_times.append(solved["timeMs"])
-            server_times.append(verified["verifyMs"])
+            server_times.append(verify_elapsed_ms)
             hashes.append(solved["hashesTested"])
         client_ms = round(statistics.mean(client_times), 2)
         server_ms = round(statistics.mean(server_times), 4)
         results.append({"bits": bits, "hexZeros": bits // 4, "expectedHashes": 2 ** bits,
             "avgHashes": round(statistics.mean(hashes)), "avgClientMs": client_ms,
             "avgServerMs": server_ms, "hashRate": round(sum(hashes) / max(sum(client_times) / 1000, 1e-9)),
-            "asymmetryRatio": int(calculate_asymmetry_ratio(client_ms, server_ms))})
+            "asymmetryRatio": calculate_asymmetry_ratio(client_ms, server_ms)})
     figure, axes = plt.subplots(1, 2, figsize=(10, 4), dpi=110)
     bits = [row["bits"] for row in results]
     axes[0].plot(bits, [row["avgClientMs"] for row in results], "o-", label="Minado cliente")
