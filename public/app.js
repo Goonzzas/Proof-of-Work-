@@ -111,8 +111,13 @@ function logClient(msg, type = 'normal') {
   clientTerminal.scrollTop = clientTerminal.scrollHeight;
 }
 
+let lastServerLogsSnapshot = '';
+
 function updateServerLogs(logs) {
   if (!logs || !logs.length) return;
+  const snapshot = JSON.stringify(logs);
+  if (snapshot === lastServerLogsSnapshot) return;
+  lastServerLogsSnapshot = snapshot;
   serverLogsTerminal.innerHTML = '';
   logs.forEach(log => {
     const line = document.createElement('div');
@@ -129,6 +134,15 @@ const ctx = canvas.getContext('2d');
 const chartTooltip = document.getElementById('realtime-chart-tooltip');
 let realtimeSeries = [];
 const MAX_REALTIME_SAMPLES = 60;
+let realtimeRenderFrame = null;
+
+function scheduleRealtimeRender() {
+  if (realtimeRenderFrame !== null) return;
+  realtimeRenderFrame = window.requestAnimationFrame(() => {
+    realtimeRenderFrame = null;
+    if (realtimeSeries.length) renderRealtimeChart(realtimeSeries);
+  });
+}
 
 function appendRealtimeSample(metrics) {
   const sample = metrics?.timeSeries?.[0];
@@ -141,7 +155,7 @@ function appendRealtimeSample(metrics) {
     time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   });
   if (realtimeSeries.length > MAX_REALTIME_SAMPLES) realtimeSeries.shift();
-  renderRealtimeChart(realtimeSeries);
+  scheduleRealtimeRender();
 }
 
 function setupCanvas() {
@@ -151,7 +165,7 @@ function setupCanvas() {
   canvas.width = Math.round(rect.width * ratio);
   canvas.height = Math.round(rect.height * ratio);
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  if (realtimeSeries.length) renderRealtimeChart(realtimeSeries);
+  if (realtimeSeries.length) scheduleRealtimeRender();
 }
 
 function renderRealtimeChart(timeSeries) {
@@ -287,6 +301,8 @@ canvas.addEventListener('mouseleave', () => { chartTooltip.style.display = 'none
 
 // POLLING DE MÉTRICAS
 async function fetchMetrics() {
+  if (metricsFetchInFlight) return;
+  metricsFetchInFlight = true;
   try {
     const res = await fetch('/api/metrics');
     if (!res.ok) return;
@@ -319,11 +335,21 @@ async function fetchMetrics() {
     if (data.eventLogs) updateServerLogs(data.eventLogs);
     appendRealtimeSample(data);
 
-  } catch (err) {}
+  } catch (err) {
+    // Retain the last rendered values during brief network interruptions.
+  } finally {
+    metricsFetchInFlight = false;
+  }
 }
+
+let metricsFetchInFlight = false;
+let blockchainFetchInFlight = false;
+let lastBlockchainSnapshot = '';
 
 async function fetchBlockchain() {
   if (!blockchainSummary || !blockchainBlocks) return;
+  if (blockchainFetchInFlight) return;
+  blockchainFetchInFlight = true;
   try {
     const response = await fetch('/api/blockchain', { cache: 'no-store' });
     const data = await response.json();
@@ -331,6 +357,10 @@ async function fetchBlockchain() {
       data.mining ? 'Minando un bloque…' : data.queuedEvents ? `${data.queuedEvents} evento(s) en cola…` :
       data.valid ? 'Cadena válida' : 'La cadena necesita revisión';
     blockchainSummary.textContent = `${status} · ${data.blockCount} bloque(s) · dificultad de cadena ${data.difficultyBits} bits · pendientes omitidos: ${data.droppedEvents || 0}`;
+    const snapshot = JSON.stringify({status, count: data.blockCount,
+      blocks: (data.blocks || []).map(block => [block.index, block.hash])});
+    if (snapshot === lastBlockchainSnapshot) return;
+    lastBlockchainSnapshot = snapshot;
     blockchainBlocks.replaceChildren();
     if (!data.blocks || !data.blocks.length) {
       blockchainBlocks.textContent = 'Aún no hay eventos guardados. Prueba «Seguro», «Sin PoW», «Replay Attack» o cambia la dificultad.';
@@ -360,6 +390,8 @@ async function fetchBlockchain() {
     });
   } catch (error) {
     blockchainSummary.textContent = `No se pudo consultar la blockchain: ${error.message}`;
+  } finally {
+    blockchainFetchInFlight = false;
   }
 }
 
@@ -784,6 +816,6 @@ window.addEventListener('resize', setupCanvas);
 setupCanvas();
 setInterval(fetchMetrics, 1000);
 fetchMetrics();
-setInterval(fetchBlockchain, 1500);
+setInterval(fetchBlockchain, 5000);
 fetchBlockchain();
 monitorDistributedBenchmark();
