@@ -671,26 +671,26 @@
           <div
             style="font-weight:700; font-size:0.95rem; margin-bottom:8px; color:var(--accent-purple); display:flex; justify-content:space-between; align-items:center;">
             <span>📊 Benchmark Criptográfico</span>
-            <a href="/api/benchmark/csv" target="_blank"
-              style="color:var(--accent-blue); font-size:0.8rem; text-decoration:none;">📥 Descargar CSV</a>
+            <a id="benchmark-csv-download" href="#" download="pow_crypto_benchmark.csv"
+              style="display:none; color:var(--accent-blue); font-size:0.8rem; text-decoration:none;">📥 Descargar resultados actuales (CSV)</a>
           </div>
           <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:12px;">
             Ejecuta la suite criptográfica
             para generar los gráficos de asimetría.
           </p>
           <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:12px;">
-            Si ejecutas «Seguro» o una simulación de ataque mientras corre, el resumen registrará esa actividad.
+            Compara el tiempo de minado con el tiempo que tarda el servidor en verificar la solución.
           </p>
           <button class="btn btn-purple" id="btn-run-benchmark">🚀 Ejecutar Benchmark Python en Vivo</button>
 
           <div id="benchmark-status-box"
-            style="display:none; margin-top:10px; font-size:0.85rem; color:var(--accent-warning);">
-            ⏳ Midiendo PoW en Python y registrando la actividad real del servidor...
+            role="status" aria-live="polite" style="display:none; margin-top:10px; font-size:0.85rem; color:var(--accent-warning);">
+            ⏳ Midiendo PoW en Python y preparando tabla, gráfica y CSV...
           </div>
-          <div id="benchmark-activity-summary" class="benchmark-activity-summary" role="status" aria-live="polite"></div>
+          <div id="benchmark-results"></div>
 
           <div class="chart-container-box">
-            <img id="benchmark-chart-img" src="/pow_performance_benchmark.png"
+            <img id="benchmark-chart-img" src="/pow_performance_benchmark.png" style="display:none"
               alt="Gráficos de Benchmark PoW Matplotlib" class="chart-img chart-expandable" title="Ampliar gráfica"
               role="button" tabindex="0" aria-label="Ampliar gráficos del benchmark"
               onerror="this.style.display='none'">
