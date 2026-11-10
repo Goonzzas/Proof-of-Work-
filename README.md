@@ -52,3 +52,87 @@ npm test
 * **`public/app.js`**: Controlador frontend de cliente.
 * **`public/pow-worker.js`**: Web Worker en JS para minado en segundo plano en el cliente.
 * **`test_e2e.js` / `test_e2e.py`**: Scripts de prueba automatizada End-to-End.
+
+---
+
+## Extensión académica: blockchain y PoW distribuido
+
+El proyecto original protege una API con Hashcash. Esta extensión incorpora una
+segunda demo independiente para los temas de la consigna: bloques enlazados,
+Merkle root, transacciones firmadas, validación de cadena, elección por trabajo
+acumulado, consenso bizantino OM(m) y minería paralela local con Dask.
+
+### Instalación y ejecución
+
+```bash
+python3 -m pip install -r requirements-distributed.txt
+python3 blockchain_demo.py --difficulty 12 --workers 1
+python3 blockchain_demo.py --difficulty 16 --workers 4
+python3 byzantine_consensus.py
+python3 run_distributed_benchmark.py
+```
+
+La dificultad se expresa en bits iniciales en cero, no en caracteres hexadecimales.
+`--workers 1` usa búsqueda secuencial; más workers reparte intervalos de nonce
+no solapados entre procesos Dask. El benchmark crea el cluster una vez, lo excluye
+del cronómetro y registra tiempos, hash rate, aceleración, eficiencia y validez
+de la prueba en `pow_distributed_benchmark.csv` y `.json`.
+
+### Componentes añadidos
+
+| Archivo | Función |
+|---|---|
+| `blockchain_pow.py` | Transacciones Ed25519, raíz Merkle, bloques SHA-256, validación de PoW, cadena y selección por trabajo acumulado; minado secuencial y Dask. |
+| `blockchain_demo.py` | Demo de extremo a extremo: genera claves, firma una transacción, mina, valida y exporta un bloque. |
+| `byzantine_consensus.py` | Simulación del algoritmo de mensajes orales OM(m), incluida una política de entrega para representar equivocación bizantina. |
+| `run_distributed_benchmark.py` | Comparación repetida de minado secuencial y paralelo, con CSV/JSON y métricas de escalabilidad. |
+| `requirements-distributed.txt` | Dependencias Python de la extensión. |
+
+### Conexión del dashboard con la blockchain
+
+El servidor registra en una blockchain local las solicitudes aceptadas y
+rechazadas, los intentos de repetición, los cambios manuales de dificultad y
+la ejecución del benchmark. Los eventos se agrupan durante unos instantes y
+se minan en segundo plano para que la respuesta HTTP no tenga que esperar a la
+minería. La cadena persiste en `data/blockchain_events.json`; el dashboard
+muestra cada evento dentro de los últimos bloques y el endpoint entrega el
+historial completo.
+
+Para activar el puente Python, crea y usa el entorno virtual recomendado en
+Linux e instala las dependencias:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-distributed.txt
+npm start
+```
+
+En el dashboard, prueba **«Seguro»**, **«Sin PoW»**, **«Replay Attack»** y el
+selector de dificultad; sus eventos aparecerán en la tarjeta
+**«Blockchain de solicitudes verificadas»**. También puedes abrir
+`http://localhost:3000/api/blockchain` para ver el JSON con el estado, los
+bloques recientes y los eventos incluidos. La cadena usa 10 bits por defecto;
+puedes cambiarlo con `BLOCKCHAIN_EVENT_DIFFICULTY_BITS` antes de iniciar el
+servidor. Estos bloques son una demostración local: no son una red pública y no
+registran datos personales del cliente.
+
+### Qué demuestra y qué no
+
+La demo construye una cadena local y ejecuta tareas paralelas en varios procesos
+de una máquina (o en un scheduler Dask remoto si se integra uno). No implementa
+una red P2P de blockchain, propagación de transacciones/bloques por sockets,
+recompensas/moneda, ni almacenamiento persistente de una red. OM(m) se simula en
+memoria y sirve para enseñar el supuesto de nodos bizantinos y el límite clásico
+`n >= 3m + 1`; no se usa como protocolo para validar la cadena PoW. En una
+blockchain abierta, PoW selecciona probabilísticamente qué historial gana por
+trabajo acumulado; esa idea está relacionada con la tolerancia a fallos, pero no
+equivale a ejecutar OM(m).
+
+La clave Ed25519 generada en la demo solo vive en el proceso y es para mostrar
+firmas; no se debe usar para administrar fondos reales. El benchmark es una
+experiencia de aula, sensible a la CPU, versiones, carga y dificultad. Para
+comparaciones justas hay que ejecutar varias repeticiones y reportar el equipo.
+bloques y los eventos incluidos. La cola descarta eventos nuevos si supera
+500 pendientes, y muestra el total omitido para proteger la demo durante una
+carga masiva.

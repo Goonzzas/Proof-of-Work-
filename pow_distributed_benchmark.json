@@ -1,0 +1,159 @@
+{
+  "description": "Dask local-process benchmark; includes mining task coordination, excludes cluster startup",
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Linux-7.0.0-43-generic-x86_64-with-glibc2.43",
+    "cpu_count": 4
+  },
+  "parameters": {
+    "difficulties_bits": [
+      12,
+      14,
+      16
+    ],
+    "workers": [
+      1,
+      2,
+      4
+    ],
+    "repeats": 7,
+    "batch_size": 20000
+  },
+  "results": [
+    {
+      "difficulty_bits": 12,
+      "workers": 1,
+      "repeats": 7,
+      "batch_size": 20000,
+      "sequential_median_seconds": 0.044696,
+      "distributed_median_seconds": 0.036497,
+      "distributed_mean_seconds": 0.080103,
+      "distributed_min_seconds": 0.015016,
+      "distributed_max_seconds": 0.320513,
+      "mean_distributed_hash_rate": 44846.79,
+      "speedup_vs_sequential": 1.225,
+      "parallel_efficiency": 1.225,
+      "all_proofs_valid": true
+    },
+    {
+      "difficulty_bits": 12,
+      "workers": 2,
+      "repeats": 7,
+      "batch_size": 20000,
+      "sequential_median_seconds": 0.044696,
+      "distributed_median_seconds": 0.04971,
+      "distributed_mean_seconds": 0.09599,
+      "distributed_min_seconds": 0.036816,
+      "distributed_max_seconds": 0.337893,
+      "mean_distributed_hash_rate": 60516.86,
+      "speedup_vs_sequential": 0.899,
+      "parallel_efficiency": 0.45,
+      "all_proofs_valid": true
+    },
+    {
+      "difficulty_bits": 12,
+      "workers": 4,
+      "repeats": 7,
+      "batch_size": 20000,
+      "sequential_median_seconds": 0.044696,
+      "distributed_median_seconds": 0.143572,
+      "distributed_mean_seconds": 0.169842,
+      "distributed_min_seconds": 0.092878,
+      "distributed_max_seconds": 0.333636,
+      "mean_distributed_hash_rate": 80331.56,
+      "speedup_vs_sequential": 0.311,
+      "parallel_efficiency": 0.078,
+      "all_proofs_valid": true
+    },
+    {
+      "difficulty_bits": 14,
+      "workers": 1,
+      "repeats": 7,
+      "batch_size": 20000,
+      "sequential_median_seconds": 0.206821,
+      "distributed_median_seconds": 0.282362,
+      "distributed_mean_seconds": 0.211189,
+      "distributed_min_seconds": 0.023207,
+      "distributed_max_seconds": 0.35085,
+      "mean_distributed_hash_rate": 44451.79,
+      "speedup_vs_sequential": 0.732,
+      "parallel_efficiency": 0.732,
+      "all_proofs_valid": true
+    },
+    {
+      "difficulty_bits": 14,
+      "workers": 2,
+      "repeats": 7,
+      "batch_size": 20000,
+      "sequential_median_seconds": 0.206821,
+      "distributed_median_seconds": 0.253921,
+      "distributed_mean_seconds": 0.237434,
+      "distributed_min_seconds": 0.07027,
+      "distributed_max_seconds": 0.413958,
+      "mean_distributed_hash_rate": 68937.59,
+      "speedup_vs_sequential": 0.815,
+      "parallel_efficiency": 0.407,
+      "all_proofs_valid": true
+    },
+    {
+      "difficulty_bits": 14,
+      "workers": 4,
+      "repeats": 7,
+      "batch_size": 20000,
+      "sequential_median_seconds": 0.206821,
+      "distributed_median_seconds": 0.343567,
+      "distributed_mean_seconds": 0.363719,
+      "distributed_min_seconds": 0.219131,
+      "distributed_max_seconds": 0.567235,
+      "mean_distributed_hash_rate": 95606.41,
+      "speedup_vs_sequential": 0.602,
+      "parallel_efficiency": 0.15,
+      "all_proofs_valid": true
+    },
+    {
+      "difficulty_bits": 16,
+      "workers": 1,
+      "repeats": 7,
+      "batch_size": 20000,
+      "sequential_median_seconds": 0.659781,
+      "distributed_median_seconds": 0.749546,
+      "distributed_mean_seconds": 0.706453,
+      "distributed_min_seconds": 0.242505,
+      "distributed_max_seconds": 1.345994,
+      "mean_distributed_hash_rate": 62937.25,
+      "speedup_vs_sequential": 0.88,
+      "parallel_efficiency": 0.88,
+      "all_proofs_valid": true
+    },
+    {
+      "difficulty_bits": 16,
+      "workers": 2,
+      "repeats": 7,
+      "batch_size": 20000,
+      "sequential_median_seconds": 0.659781,
+      "distributed_median_seconds": 0.652825,
+      "distributed_mean_seconds": 0.551736,
+      "distributed_min_seconds": 0.294252,
+      "distributed_max_seconds": 0.831719,
+      "mean_distributed_hash_rate": 99292.52,
+      "speedup_vs_sequential": 1.011,
+      "parallel_efficiency": 0.505,
+      "all_proofs_valid": true
+    },
+    {
+      "difficulty_bits": 16,
+      "workers": 4,
+      "repeats": 7,
+      "batch_size": 20000,
+      "sequential_median_seconds": 0.659781,
+      "distributed_median_seconds": 0.596407,
+      "distributed_mean_seconds": 0.667035,
+      "distributed_min_seconds": 0.521245,
+      "distributed_max_seconds": 1.121102,
+      "mean_distributed_hash_rate": 116803.04,
+      "speedup_vs_sequential": 1.106,
+      "parallel_efficiency": 0.277,
+      "all_proofs_valid": true
+    }
+  ]
+}

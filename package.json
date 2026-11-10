@@ -6,7 +6,11 @@
   "scripts": {
     "start": "node server.js",
     "benchmark": "python3 run_benchmark.py && python3 plot_benchmark.py",
-    "test": "node test_e2e.js && python3 test_e2e.py"
+    "test": "node test_e2e.js && python3 test_e2e.py",
+    "blockchain:demo": "python3 blockchain_demo.py --difficulty 12 --workers 1",
+    "blockchain:distributed": "python3 blockchain_demo.py --difficulty 16 --workers 4",
+    "blockchain:benchmark": "python3 run_distributed_benchmark.py",
+    "consensus:demo": "python3 byzantine_consensus.py"
   },
   "dependencies": {
     "express": "^4.19.2",

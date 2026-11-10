@@ -92,6 +92,8 @@ const workerHashes = document.getElementById('worker-hashes');
 const workerHashrate = document.getElementById('worker-hashrate');
 const workerTime = document.getElementById('worker-time');
 const progressFill = document.getElementById('progress-fill');
+const blockchainSummary = document.getElementById('blockchain-summary');
+const blockchainBlocks = document.getElementById('blockchain-blocks');
 
 // LOGGING
 function logClient(msg, type = 'normal') {
@@ -297,6 +299,39 @@ async function fetchMetrics() {
     if (data.timeSeries) renderRealtimeChart(data.timeSeries);
 
   } catch (err) {}
+}
+
+async function fetchBlockchain() {
+  if (!blockchainSummary || !blockchainBlocks) return;
+  try {
+    const response = await fetch('/api/blockchain');
+    const data = await response.json();
+    const status = data.lastError ? `Error: ${data.lastError}` :
+      data.mining ? 'Minando un bloque…' : data.queuedEvents ? `${data.queuedEvents} evento(s) en cola…` :
+      data.valid ? 'Cadena válida' : 'La cadena necesita revisión';
+    blockchainSummary.textContent = `${status} · ${data.blockCount} bloque(s) · dificultad de cadena ${data.difficultyBits} bits · pendientes omitidos: ${data.droppedEvents || 0}`;
+    blockchainBlocks.replaceChildren();
+    if (!data.blocks || !data.blocks.length) {
+      blockchainBlocks.textContent = 'Aún no hay eventos guardados. Prueba «Seguro», «Sin PoW», «Replay Attack» o cambia la dificultad.';
+      return;
+    }
+    data.blocks.slice(0, 10).forEach(block => {
+      const blockLine = document.createElement('div');
+      blockLine.className = 'log-line warn';
+      const events = block.transactions || [];
+      blockLine.textContent = `Bloque #${block.index} · ${events.length} evento(s) · ${block.hash.slice(0, 24)}… · PoW ${block.difficultyBits} bits`;
+      blockchainBlocks.appendChild(blockLine);
+      events.forEach(event => {
+        const eventLine = document.createElement('div');
+        eventLine.className = 'log-line';
+        const time = event.timestamp ? new Date(event.timestamp * 1000).toLocaleTimeString('es-ES') : '';
+        eventLine.textContent = `  └ ${time} · ${event.type || 'EVENTO'} · ${event.message || event.endpoint || ''}`;
+        blockchainBlocks.appendChild(eventLine);
+      });
+    });
+  } catch (error) {
+    blockchainSummary.textContent = `No se pudo consultar la blockchain: ${error.message}`;
+  }
 }
 
 // 1. SOLICITUD SIN POW
@@ -537,3 +572,5 @@ window.addEventListener('resize', setupCanvas);
 setupCanvas();
 setInterval(fetchMetrics, 1000);
 fetchMetrics();
+setInterval(fetchBlockchain, 1500);
+fetchBlockchain();

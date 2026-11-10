@@ -10,10 +10,77 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const url = require('url');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = crypto.randomBytes(32).toString('hex'); // Llave privada de firma HMAC
+const BLOCKCHAIN_FILE = path.join(__dirname, 'data', 'blockchain_events.json');
+const BLOCKCHAIN_BRIDGE = path.join(__dirname, 'blockchain_event_bridge.py');
+const PYTHON = process.env.PYTHON_EXECUTABLE || (fs.existsSync(path.join(__dirname, '.venv', 'bin', 'python'))
+  ? path.join(__dirname, '.venv', 'bin', 'python') : 'python3');
+const blockchainQueue = [];
+let blockchainFlushTimer = null;
+let blockchainMining = false;
+let blockchainLastError = null;
+let blockchainDroppedEvents = 0;
+
+function queueBlockchainEvent(event) {
+  if (blockchainQueue.length >= 500) {
+    blockchainDroppedEvents++;
+    return;
+  }
+  blockchainQueue.push(event);
+  if (!blockchainFlushTimer && !blockchainMining) {
+    blockchainFlushTimer = setTimeout(flushBlockchainEvents, 700);
+  }
+}
+
+function flushBlockchainEvents() {
+  blockchainFlushTimer = null;
+  if (blockchainMining || blockchainQueue.length === 0) return;
+  const batch = blockchainQueue.splice(0, 20);
+  blockchainMining = true;
+  const child = spawn(PYTHON, [BLOCKCHAIN_BRIDGE, '--store', BLOCKCHAIN_FILE], { cwd: __dirname });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8').on('data', chunk => { stdout += chunk; });
+  child.stderr.setEncoding('utf8').on('data', chunk => { stderr += chunk; });
+  child.stdin.on('error', () => {});
+  child.on('error', error => finishBlockchainBatch(error));
+  child.on('close', code => {
+    if (code !== 0) return finishBlockchainBatch(new Error(stderr || `bridge terminó con código ${code}`));
+    try {
+      const result = JSON.parse(stdout);
+      blockchainLastError = null;
+      trafficManager.logEvent('BLOCKCHAIN', `${batch.length} solicitud(es) válida(s) guardada(s) en bloque #${result.block.index}.`);
+    } catch (error) {
+      finishBlockchainBatch(new Error(`respuesta inválida del bridge: ${error.message}`));
+      return;
+    }
+    blockchainMining = false;
+    if (blockchainQueue.length && !blockchainFlushTimer) blockchainFlushTimer = setTimeout(flushBlockchainEvents, 100);
+  });
+  child.stdin.end(JSON.stringify(batch));
+
+  function finishBlockchainBatch(error) {
+    if (!blockchainMining) return;
+    blockchainQueue.unshift(...batch);
+    blockchainLastError = error.message;
+    trafficManager.logEvent('BLOCKCHAIN_ERROR', `No se pudo guardar el bloque: ${error.message}`);
+    blockchainMining = false;
+    if (!blockchainFlushTimer) blockchainFlushTimer = setTimeout(flushBlockchainEvents, 5000);
+  }
+}
+
+function readBlockchainState() {
+  try {
+    if (!fs.existsSync(BLOCKCHAIN_FILE)) return { blocks: [], valid: true, queuedEvents: blockchainQueue.length };
+    const saved = JSON.parse(fs.readFileSync(BLOCKCHAIN_FILE, 'utf8'));
+    return { ...saved, queuedEvents: blockchainQueue.length };
+  } catch (error) {
+    return { blocks: [], valid: false, error: error.message, queuedEvents: blockchainQueue.length };
+  }
+}
 
 // --- GESTOR DE TRÁFICO Y DIFICULTAD DINÁMICA (AUTOTUNING) ---
 class TrafficManager {
@@ -73,6 +140,25 @@ class TrafficManager {
     this.eventLogs.push({ time: timeStr, type, message });
     if (this.eventLogs.length > 40) {
       this.eventLogs.shift();
+    }
+
+    // Replicar eventos de auditoría en la cadena; se excluyen los mensajes del
+    // propio minado para evitar que registrar un bloque genere otro evento.
+    if (!['BLOCKCHAIN', 'BLOCKCHAIN_ERROR', 'SYS'].includes(type)) {
+      let eventType = type;
+      let summary = String(message).slice(0, 180);
+      const hash = type === 'VERIFIED' ? String(message).match(/Hash: ([a-f0-9]+)/i)?.[1] : null;
+      if (type === 'VERIFIED') {
+        eventType = 'REQUEST_VERIFIED';
+        summary = hash ? `Solicitud autorizada mediante PoW (hash ${hash})` : 'Solicitud autorizada mediante PoW';
+      } else if (type === 'REJECTED' && String(message).includes('Replay Attack')) {
+        eventType = 'REPLAY_ATTEMPT';
+        summary = 'Intento de reutilizar una prueba PoW rechazado';
+      } else if (type === 'REJECTED') {
+        eventType = 'REQUEST_REJECTED';
+        summary = 'Solicitud rechazada: prueba PoW ausente o inválida';
+      }
+      queueBlockchainEvent({ type: eventType, message: summary, timestamp: Date.now() / 1000 });
     }
   }
 
@@ -250,7 +336,6 @@ const server = http.createServer((req, res) => {
     // PoW VÁLIDO -> HTTP 200 OK
     trafficManager.totalVerified++;
     trafficManager.logEvent('VERIFIED', `PoW Válido de ${verification.clientId} (Hash: ${verification.hash.slice(0, 10)}...)`);
-
     const procStart = Date.now();
     setTimeout(() => {
       const procTimeMs = Date.now() - procStart;
@@ -276,6 +361,31 @@ const server = http.createServer((req, res) => {
   }
 
   // API 3: Telemetría y Métricas en Tiempo Real
+  if (req.method === 'GET' && pathname === '/api/blockchain') {
+    const state = readBlockchainState();
+    state.mining = blockchainMining;
+    state.lastError = blockchainLastError;
+    state.droppedEvents = blockchainDroppedEvents;
+    const blocks = state.chain || [];
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({
+      valid: state.valid !== false,
+      mining: state.mining,
+      queuedEvents: state.queuedEvents,
+      droppedEvents: state.droppedEvents,
+      lastError: state.lastError,
+      difficultyBits: state.difficulty_bits || Number(process.env.BLOCKCHAIN_EVENT_DIFFICULTY_BITS || 10),
+      blockCount: blocks.length,
+      blocks: blocks.slice().reverse().map(block => ({
+        index: block.index, hash: block.hash, previousHash: block.previous_hash,
+        transactions: (block.transactions || []).map(tx => tx.metadata || { kind: tx.kind }),
+        difficultyBits: block.difficulty_bits, nonce: block.nonce
+      }))
+    }));
+    return;
+  }
+
+  // API 4: Telemetría y Métricas en Tiempo Real
   if (req.method === 'GET' && pathname === '/api/metrics') {
     trafficManager.tickTimeSeries();
     const totalReqs = trafficManager.totalVerified + trafficManager.totalRejected;
@@ -353,6 +463,7 @@ const server = http.createServer((req, res) => {
       captureActivity();
 
       if (error) {
+        trafficManager.logEvent('BENCHMARK_FAILED', 'El benchmark no pudo completarse.');
         console.error(`Error ejecutando benchmark Python: ${stderr || error.message}`);
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: false, error: stderr || error.message }));
@@ -395,6 +506,7 @@ const server = http.createServer((req, res) => {
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        trafficManager.logEvent('BENCHMARK_COMPLETE', 'El benchmark criptográfico terminó correctamente.');
         res.end(JSON.stringify({
           success: true,
           message: 'Benchmark PoW ejecutado; actividad real del servidor capturada durante la medición.',

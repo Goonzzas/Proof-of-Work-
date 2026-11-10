@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Enterprise PoW Rate Limiter v7 & Crypto Benchmark Suite</title>
+  <title>Enterprise PoW Rate Limiter v & Crypto Benchmark Suite</title>
   <style>
     :root {
       --bg-main: #0f172a;
@@ -108,8 +109,15 @@
     }
 
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.85; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.85;
+      }
     }
 
     .autotune-info {
@@ -221,17 +229,55 @@
       gap: 8px;
     }
 
-    .btn-primary { background-color: #2563eb; color: white; }
-    .btn-primary:hover { background-color: #1d4ed8; }
-    .btn-danger { background-color: #dc2626; color: white; }
-    .btn-danger:hover { background-color: #b91c1c; }
-    .btn-secondary { background-color: #475569; color: white; }
-    .btn-secondary:hover { background-color: #334155; }
-    .btn-warning { background-color: #d97706; color: white; }
-    .btn-warning:hover { background-color: #b45309; }
-    .btn-purple { background-color: #7c3aed; color: white; }
-    .btn-purple:hover { background-color: #6d28d9; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary {
+      background-color: #2563eb;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #1d4ed8;
+    }
+
+    .btn-danger {
+      background-color: #dc2626;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: #b91c1c;
+    }
+
+    .btn-secondary {
+      background-color: #475569;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: #334155;
+    }
+
+    .btn-warning {
+      background-color: #d97706;
+      color: white;
+    }
+
+    .btn-warning:hover {
+      background-color: #b45309;
+    }
+
+    .btn-purple {
+      background-color: #7c3aed;
+      color: white;
+    }
+
+    .btn-purple:hover {
+      background-color: #6d28d9;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
 
     .worker-status-box {
       background: #0f172a;
@@ -248,7 +294,9 @@
       font-size: 0.85rem;
     }
 
-    .stat-row:last-child { margin-bottom: 0; }
+    .stat-row:last-child {
+      margin-bottom: 0;
+    }
 
     .progress-bar-container {
       width: 100%;
@@ -278,12 +326,27 @@
       color: #38bdf8;
     }
 
-    .log-line { margin-bottom: 6px; line-height: 1.4; }
-    .log-line.error { color: var(--accent-danger); }
-    .log-line.success { color: var(--accent-green); }
-    .log-line.warn { color: var(--accent-warning); }
+    .log-line {
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
 
-    .control-group { margin-bottom: 16px; }
+    .log-line.error {
+      color: var(--accent-danger);
+    }
+
+    .log-line.success {
+      color: var(--accent-green);
+    }
+
+    .log-line.warn {
+      color: var(--accent-warning);
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
     .control-group label {
       display: block;
       font-size: 0.85rem;
@@ -328,8 +391,6 @@
       font-size: 0.75rem;
       margin: 8px 0 0;
     }
-
-    
     .benchmark-activity-summary {
       display: none;
       margin-top: 12px;
@@ -342,7 +403,8 @@
       line-height: 1.6;
     }
     .benchmark-activity-summary strong { color: var(--text-primary); }
-.realtime-chart-wrap {
+
+    .realtime-chart-wrap {
       position: relative;
     }
 
@@ -425,17 +487,18 @@
     }
   </style>
 </head>
+
 <body>
 
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>🛡️ Proof-of-Work Rate Limiter v7</h1>
-        <p>Servidor Node.js (High-Fluidity I/O) + Algoritmos Hash & Benchmark en Python 3.12</p>
+        <h1>🛡️ Proof-of-Work Rate Limiter</h1>
+        <p></p>
       </div>
       <div class="badge-status">
         <div class="status-dot"></div>
-        <span>Middleware Activo (Node.js + Python)</span>
+        <span>Middleware Activo </span>
       </div>
     </header>
 
@@ -484,13 +547,27 @@
       </div>
     </div>
 
+    <section class="card" style="margin-bottom:24px" aria-labelledby="blockchain-title">
+      <div class="card-header" id="blockchain-title">
+        <span>⛓️ Blockchain de actividad del servidor</span>
+        <a href="/api/blockchain" target="_blank" style="color:var(--accent-blue)">Ver datos JSON</a>
+      </div>
+      <p id="blockchain-summary" style="color:var(--text-secondary);margin-bottom:12px">
+        Solicitudes, rechazos, ataques repetidos y cambios de configuración quedan registrados en bloques locales.
+      </p>
+      <div id="blockchain-blocks" class="log-terminal" style="height:140px" aria-live="polite">
+        Esperando eventos de actividad…
+      </div>
+    </section>
+
     <!-- MAIN TWO COLUMN GRID -->
     <div class="main-grid">
       <!-- PANEL IZQUIERDO: DEMOSTRADOR DE CLIENTE & TELEMETRÍA -->
       <div class="card">
         <div class="card-header">
           <span>🚀 Pruebas de Acceso a Endpoint Protegido</span>
-          <span style="font-size:0.8rem; font-weight:normal; color:var(--text-secondary)"><code>POST /api/heavy-report</code></span>
+          <span
+            style="font-size:0.8rem; font-weight:normal; color:var(--text-secondary)"><code>POST /api/heavy-report</code></span>
         </div>
 
         <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
@@ -541,15 +618,19 @@
           <div style="font-size:0.85rem; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">
             📈 Gráfico de Carga en Tiempo Real (Canvas)
           </div>
-          <div class="realtime-chart-wrap" style="background:#020617; border:1px solid var(--border-color); border-radius:8px; padding:10px;">
-            <canvas id="realtime-canvas" class="chart-expandable" title="Ampliar gráfica" role="button" tabindex="0" aria-label="Gráfico de solicitudes por segundo y dificultad PoW a lo largo del tiempo" style="width:100%; height:210px; display:block;"></canvas>
+          <div class="realtime-chart-wrap"
+            style="background:#020617; border:1px solid var(--border-color); border-radius:8px; padding:10px;">
+            <canvas id="realtime-canvas" class="chart-expandable" title="Ampliar gráfica" role="button" tabindex="0"
+              aria-label="Gráfico de solicitudes por segundo y dificultad PoW a lo largo del tiempo"
+              style="width:100%; height:210px; display:block;"></canvas>
             <div id="realtime-chart-tooltip" class="realtime-chart-tooltip" aria-live="polite"></div>
           </div>
           <div class="realtime-chart-legend" aria-label="Leyenda del gráfico">
             <span class="legend-rps">━ Solicitudes por segundo (eje izquierdo)</span>
             <span class="legend-difficulty">┄ Dificultad en ceros hex (eje derecho)</span>
           </div>
-          <p class="chart-hint">Eje X: hora de cada medición · Pasa el cursor para ver los valores · Haz clic para ampliar</p>
+          <p class="chart-hint">Eje X: hora de cada medición · Pasa el cursor para ver los valores · Haz clic para
+            ampliar</p>
         </div>
       </div>
 
@@ -582,23 +663,32 @@
         </div>
 
         <div style="margin-top:20px; border-top:1px solid var(--border-color); padding-top:16px;">
-          <div style="font-weight:700; font-size:0.95rem; margin-bottom:8px; color:var(--accent-purple); display:flex; justify-content:space-between; align-items:center;">
-            <span>📊 Benchmark Criptográfico (Python + Matplotlib)</span>
-            <a href="/api/benchmark/csv" target="_blank" style="color:var(--accent-blue); font-size:0.8rem; text-decoration:none;">📥 Descargar CSV</a>
+          <div
+            style="font-weight:700; font-size:0.95rem; margin-bottom:8px; color:var(--accent-purple); display:flex; justify-content:space-between; align-items:center;">
+            <span>📊 Benchmark Criptográfico</span>
+            <a href="/api/benchmark/csv" target="_blank"
+              style="color:var(--accent-blue); font-size:0.8rem; text-decoration:none;">📥 Descargar CSV</a>
           </div>
           <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:12px;">
-            Ejecuta la suite criptográfica de Python (<code>run_benchmark.py</code> + <code>plot_benchmark.py</code>) para generar los gráficos de asimetría.
+            Ejecuta la suite criptográfica
+            para generar los gráficos de asimetría.
           </p>
-          <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:12px;">Si ejecutas «Seguro» o una simulación de ataque mientras corre, el resumen registrará esa actividad.</p>
+          <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:12px;">
+            Si ejecutas «Seguro» o una simulación de ataque mientras corre, el resumen registrará esa actividad.
+          </p>
           <button class="btn btn-purple" id="btn-run-benchmark">🚀 Ejecutar Benchmark Python en Vivo</button>
 
-          <div id="benchmark-status-box" style="display:none; margin-top:10px; font-size:0.85rem; color:var(--accent-warning);">
+          <div id="benchmark-status-box"
+            style="display:none; margin-top:10px; font-size:0.85rem; color:var(--accent-warning);">
             ⏳ Midiendo PoW en Python y registrando la actividad real del servidor...
           </div>
           <div id="benchmark-activity-summary" class="benchmark-activity-summary" role="status" aria-live="polite"></div>
 
           <div class="chart-container-box">
-            <img id="benchmark-chart-img" src="/pow_performance_benchmark.png" alt="Gráficos de Benchmark PoW Matplotlib" class="chart-img chart-expandable" title="Ampliar gráfica" role="button" tabindex="0" aria-label="Ampliar gráficos del benchmark" onerror="this.style.display='none'">
+            <img id="benchmark-chart-img" src="/pow_performance_benchmark.png"
+              alt="Gráficos de Benchmark PoW Matplotlib" class="chart-img chart-expandable" title="Ampliar gráfica"
+              role="button" tabindex="0" aria-label="Ampliar gráficos del benchmark"
+              onerror="this.style.display='none'">
           </div>
           <p class="chart-hint">Haz clic en la gráfica para verla ampliada · Esc para cerrar</p>
         </div>
@@ -616,10 +706,12 @@
   </div>
 
   <div id="chart-lightbox" class="chart-lightbox" role="dialog" aria-modal="true" aria-label="Gráfica ampliada">
-    <button id="chart-lightbox-close" class="chart-lightbox-close" type="button" aria-label="Cerrar gráfica ampliada">✕ Cerrar</button>
+    <button id="chart-lightbox-close" class="chart-lightbox-close" type="button" aria-label="Cerrar gráfica ampliada">✕
+      Cerrar</button>
     <div id="chart-lightbox-content"></div>
   </div>
 
   <script src="app.js"></script>
 </body>
+
 </html>

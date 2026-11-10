@@ -1,0 +1,8 @@
+.venv/
+node_modules/
+__pycache__/
+data/blockchain_events.json
+data/blockchain_events.json.tmp
+demo_blockchain.json
+demo_dask.json
+pow_benchmark_activity.json
