@@ -140,7 +140,10 @@ def summarize(times: list[float]) -> dict[str, float]:
 
 @app.get("/api/benchmark/distributed/status")
 def dask_status():
-    return rpc("pow_benchmark_get")
+    state = rpc("pow_benchmark_get")
+    if state.get("results"):
+        state["results"]["description"] = "Dask con workers de hilos dentro de una función Python de Vercel."
+    return state
 
 
 @app.post("/api/benchmark/distributed/run")
@@ -153,8 +156,10 @@ def run_dask_benchmark():
     try:
         rpc("pow_benchmark_update", {"p_run_id": run_id, "p_results": [], "p_completed": 0,
             "p_running": True, "p_error": None})
+        # Serverless functions cannot reliably spawn child processes. Dask
+        # still schedules independent nonce ranges across in-process workers.
         cluster = LocalCluster(n_workers=max(WORKER_COUNTS), threads_per_worker=1,
-                               processes=True, dashboard_address=None, host="127.0.0.1")
+                               processes=False, dashboard_address=None, host="127.0.0.1")
         client = Client(cluster)
         try:
             for bits in DIFFICULTIES:
