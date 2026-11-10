@@ -17,12 +17,11 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from dask.distributed import Client, LocalCluster
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
-from blockchain_pow import Block, mine_distributed, mine_sequential
+from blockchain_pow import Block, mine_distributed_threaded, mine_sequential
 from pow_crypto import (calculate_asymmetry_ratio, generate_pow_challenge,
                         solve_pow, verify_pow)
 
@@ -156,40 +155,32 @@ def run_dask_benchmark():
     try:
         rpc("pow_benchmark_update", {"p_run_id": run_id, "p_results": [], "p_completed": 0,
             "p_running": True, "p_error": None})
-        # Serverless functions cannot reliably spawn child processes. Dask
-        # still schedules independent nonce ranges across in-process workers.
-        cluster = LocalCluster(n_workers=max(WORKER_COUNTS), threads_per_worker=1,
-                               processes=False, dashboard_address=None, host="127.0.0.1")
-        client = Client(cluster)
-        try:
-            for bits in DIFFICULTIES:
-                templates = [Block(1, "0" * 64,
-                    [{"experiment": repeat, "nonce_seed": f"{bits}-{repeat}"}], bits)
-                    for repeat in range(REPEATS)]
-                sequential = summarize([mine_sequential(copy.deepcopy(block))["elapsed_seconds"]
-                                        for block in templates])
-                for workers in WORKER_COUNTS:
-                    times, rates, proofs_valid = [], [], True
-                    for template in templates:
-                        block = copy.deepcopy(template)
-                        measured = mine_distributed(block, workers=workers, batch_size=BATCH_SIZE, client=client)
-                        times.append(measured["elapsed_seconds"]); rates.append(measured["hash_rate"])
-                        proofs_valid = proofs_valid and block.valid_proof()
-                    distributed = summarize(times)
-                    speedup = sequential["median_seconds"] / max(distributed["median_seconds"], 1e-9)
-                    results.append({"difficulty_bits": bits, "workers": workers, "repeats": REPEATS,
-                        "batch_size": BATCH_SIZE, "sequential_median_seconds": sequential["median_seconds"],
-                        "distributed_median_seconds": distributed["median_seconds"],
-                        "distributed_mean_seconds": distributed["mean_seconds"],
-                        "distributed_min_seconds": distributed["min_seconds"],
-                        "distributed_max_seconds": distributed["max_seconds"],
-                        "mean_distributed_hash_rate": round(statistics.mean(rates), 2),
-                        "speedup_vs_sequential": round(speedup, 3),
-                        "parallel_efficiency": round(speedup / workers, 3), "all_proofs_valid": proofs_valid})
-                    rpc("pow_benchmark_update", {"p_run_id": run_id, "p_results": results,
-                        "p_completed": len(results), "p_running": True, "p_error": None})
-        finally:
-            client.close(); cluster.close()
+        for bits in DIFFICULTIES:
+            templates = [Block(1, "0" * 64,
+                [{"experiment": repeat, "nonce_seed": f"{bits}-{repeat}"}], bits)
+                for repeat in range(REPEATS)]
+            sequential = summarize([mine_sequential(copy.deepcopy(block))["elapsed_seconds"]
+                                    for block in templates])
+            for workers in WORKER_COUNTS:
+                times, rates, proofs_valid = [], [], True
+                for template in templates:
+                    block = copy.deepcopy(template)
+                    measured = mine_distributed_threaded(block, workers=workers, batch_size=BATCH_SIZE)
+                    times.append(measured["elapsed_seconds"]); rates.append(measured["hash_rate"])
+                    proofs_valid = proofs_valid and block.valid_proof()
+                distributed = summarize(times)
+                speedup = sequential["median_seconds"] / max(distributed["median_seconds"], 1e-9)
+                results.append({"difficulty_bits": bits, "workers": workers, "repeats": REPEATS,
+                    "batch_size": BATCH_SIZE, "sequential_median_seconds": sequential["median_seconds"],
+                    "distributed_median_seconds": distributed["median_seconds"],
+                    "distributed_mean_seconds": distributed["mean_seconds"],
+                    "distributed_min_seconds": distributed["min_seconds"],
+                    "distributed_max_seconds": distributed["max_seconds"],
+                    "mean_distributed_hash_rate": round(statistics.mean(rates), 2),
+                    "speedup_vs_sequential": round(speedup, 3),
+                    "parallel_efficiency": round(speedup / workers, 3), "all_proofs_valid": proofs_valid})
+                rpc("pow_benchmark_update", {"p_run_id": run_id, "p_results": results,
+                    "p_completed": len(results), "p_running": True, "p_error": None})
         rpc("pow_benchmark_update", {"p_run_id": run_id, "p_results": results,
             "p_completed": len(results), "p_running": False, "p_error": None})
         return {"success": True, "started": True, "message": "Benchmark Dask completado y compartido en Supabase."}
