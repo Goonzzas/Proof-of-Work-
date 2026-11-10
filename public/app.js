@@ -127,6 +127,21 @@ const canvas = document.getElementById('realtime-canvas');
 const ctx = canvas.getContext('2d');
 const chartTooltip = document.getElementById('realtime-chart-tooltip');
 let realtimeSeries = [];
+const MAX_REALTIME_SAMPLES = 60;
+
+function appendRealtimeSample(metrics) {
+  const sample = metrics?.timeSeries?.[0];
+  if (!sample) return;
+
+  // The API returns the current aggregate, not a history. Keep a rolling
+  // browser-side history so the chart has enough points to draw visible lines.
+  realtimeSeries.push({
+    ...sample,
+    time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  });
+  if (realtimeSeries.length > MAX_REALTIME_SAMPLES) realtimeSeries.shift();
+  renderRealtimeChart(realtimeSeries);
+}
 
 function setupCanvas() {
   if (!canvas) return;
@@ -301,7 +316,7 @@ async function fetchMetrics() {
     }
 
     if (data.eventLogs) updateServerLogs(data.eventLogs);
-    if (data.timeSeries) renderRealtimeChart(data.timeSeries);
+    appendRealtimeSample(data);
 
   } catch (err) {}
 }
