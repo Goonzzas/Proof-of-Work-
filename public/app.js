@@ -40,6 +40,8 @@ const benchmarkActivitySummary = document.getElementById('benchmark-activity-sum
 const btnRunDistributedBenchmark = document.getElementById('btn-run-distributed-benchmark');
 const distributedBenchmarkStatus = document.getElementById('distributed-benchmark-status');
 const distributedBenchmarkResults = document.getElementById('distributed-benchmark-results');
+const daskLivePanel = document.getElementById('dask-live-panel');
+const daskDashboardLink = document.getElementById('dask-dashboard-link');
 const chartLightbox = document.getElementById('chart-lightbox');
 const chartLightboxContent = document.getElementById('chart-lightbox-content');
 const chartLightboxClose = document.getElementById('chart-lightbox-close');
@@ -627,6 +629,20 @@ async function refreshDistributedBenchmarkStatus() {
     const state = await response.json();
     const results = state.results;
     if (results?.results?.length) renderDistributedBenchmarkResults(results);
+    const dashboardUrl = results?.dashboard_url;
+    if (state.running && dashboardUrl) {
+      try {
+        const parsedDashboardUrl = new URL(dashboardUrl);
+        if (parsedDashboardUrl.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(parsedDashboardUrl.hostname)) {
+          daskDashboardLink.href = parsedDashboardUrl.href;
+          daskLivePanel.style.display = 'block';
+        }
+      } catch (error) {
+        daskLivePanel.style.display = 'none';
+      }
+    } else {
+      daskLivePanel.style.display = 'none';
+    }
     btnRunDistributedBenchmark.disabled = Boolean(state.running);
     if (state.lastError) {
       distributedBenchmarkStatus.textContent = `El benchmark no pudo completarse: ${state.lastError}`;

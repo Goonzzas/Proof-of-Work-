@@ -30,7 +30,8 @@ def summarize(times: list[float]) -> dict[str, float]:
             "max_seconds": round(max(times), 6)}
 
 
-def write_progress(base: Path, measurements: list[dict], running: bool) -> None:
+def write_progress(base: Path, measurements: list[dict], running: bool,
+                   dashboard_url: str | None = None) -> None:
     total = len(DIFFICULTIES) * len(WORKER_COUNTS)
     payload = {
         "description": "Dask local-process benchmark; includes mining task coordination, excludes cluster startup",
@@ -38,6 +39,7 @@ def write_progress(base: Path, measurements: list[dict], running: bool) -> None:
         "completed": len(measurements),
         "total": total,
         "updated_at": time.time(),
+        "dashboard_url": dashboard_url,
         "environment": {"python": platform.python_version(), "platform": platform.platform(),
                         "cpu_count": os.cpu_count()},
         "parameters": {"difficulties_bits": DIFFICULTIES, "workers": WORKER_COUNTS,
@@ -55,8 +57,11 @@ def main() -> None:
     measurements: list[dict] = []
     write_progress(base, measurements, running=True)
     cluster = LocalCluster(n_workers=max(WORKER_COUNTS), threads_per_worker=1,
-                           processes=True, dashboard_address=None)
+                           processes=True, host="127.0.0.1",
+                           dashboard_address="127.0.0.1:0")
     client = Client(cluster)
+    dashboard_url = client.dashboard_link
+    write_progress(base, measurements, running=True, dashboard_url=dashboard_url)
     try:
         for bits in DIFFICULTIES:
             # Each serial/Dask pair receives the exact same header so the
@@ -98,7 +103,7 @@ def main() -> None:
                     "parallel_efficiency": round(speedup / workers, 3),
                     "all_proofs_valid": valid,
                 })
-                write_progress(base, measurements, running=True)
+                write_progress(base, measurements, running=True, dashboard_url=dashboard_url)
                 print(f"{bits:2} bits | {workers} workers | serial {serial['median_seconds']:.4f}s "
                       f"| Dask {distributed['median_seconds']:.4f}s | "
                       f"speedup {speedup:.2f}x | valid={valid}")
@@ -120,7 +125,7 @@ def main() -> None:
         writer = csv.DictWriter(f, fieldnames=measurements[0].keys())
         writer.writeheader()
         writer.writerows(measurements)
-    write_progress(base, measurements, running=False)
+    write_progress(base, measurements, running=False, dashboard_url=dashboard_url)
     print("Resultados guardados en pow_distributed_benchmark.csv y .json")
 
 

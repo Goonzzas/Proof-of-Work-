@@ -83,6 +83,8 @@ También puedes iniciar esta evaluación desde el dashboard con el botón
 configuración y muestra los tiempos secuenciales y distribuidos, aceleración,
 eficiencia y validez. El CSV se puede descargar desde la misma sección. El
 progreso intermedio se escribe en `pow_distributed_benchmark_progress.json`.
+Mientras Dask trabaja, aparece el enlace **«Abrir dashboard de Dask»** con el
+panel de workers y tareas activos; ese panel se cierra al terminar el benchmark.
 
 ### Componentes añadidos
 

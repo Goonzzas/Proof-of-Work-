@@ -708,6 +708,10 @@
           </p>
           <button class="btn btn-secondary" id="btn-run-distributed-benchmark">▶ Ejecutar comparación Dask</button>
           <div id="distributed-benchmark-status" class="benchmark-activity-summary" role="status" aria-live="polite"></div>
+          <div id="dask-live-panel" style="display:none; margin-top:10px; padding:10px; border:1px solid var(--border-color); border-radius:8px; background:#0f172a;">
+            <span style="font-size:0.82rem; color:var(--text-secondary);">Panel en vivo de Dask: workers, tareas y uso del cluster.</span>
+            <a id="dask-dashboard-link" href="#" target="_blank" rel="noopener noreferrer" style="display:inline-block; margin-left:8px; color:var(--accent-blue);">Abrir dashboard de Dask ↗</a>
+          </div>
           <div id="distributed-benchmark-results"></div>
         </div>
 
