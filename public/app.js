@@ -537,13 +537,13 @@ selectDifficulty.addEventListener('change', async () => {
 btnRunBenchmark.addEventListener('click', async () => {
   btnRunBenchmark.disabled = true;
   benchmarkStatusBox.style.display = 'block';
-  logClient('🚀 Invocando suite de benchmark en el Servidor Python (run_benchmark.py + plot_benchmark.py)...');
+  logClient('🚀 Ejecutando la comparación de minado y verificación SHA-256 en Python...');
 
   try {
     const res = await fetch('/api/benchmark/run', { method: 'POST' });
     const data = await res.json();
     if (data.success) {
-      logClient('✅ Benchmark criptográfico Python completado con éxito! Gráficos Matplotlib actualizados.', 'success');
+      logClient('✅ Benchmark criptográfico Python completado; gráfica y resultados actualizados.', 'success');
       benchmarkChartImg.style.display = 'inline-block';
       benchmarkChartImg.src = data.chartUrl;
       const activity = data.activityDuringRun;
@@ -635,13 +635,19 @@ async function refreshDistributedBenchmarkStatus() {
         const parsedDashboardUrl = new URL(dashboardUrl);
         if (parsedDashboardUrl.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(parsedDashboardUrl.hostname)) {
           daskDashboardLink.href = parsedDashboardUrl.href;
+          daskDashboardLink.style.display = 'inline-block';
           daskLivePanel.style.display = 'block';
         }
       } catch (error) {
         daskLivePanel.style.display = 'none';
       }
+    } else if (state.running && results?.description?.includes('Vercel')) {
+      daskLivePanel.style.display = 'block';
+      daskDashboardLink.style.display = 'none';
+      daskLivePanel.querySelector('span').textContent = 'Dask está ejecutándose en Vercel. La tabla compartida se actualiza con cada configuración terminada.';
     } else {
       daskLivePanel.style.display = 'none';
+      daskDashboardLink.style.display = 'inline-block';
     }
     btnRunDistributedBenchmark.disabled = Boolean(state.running);
     if (state.lastError) {
@@ -683,16 +689,32 @@ async function monitorDistributedBenchmark(logCompletion = false) {
 btnRunDistributedBenchmark.addEventListener('click', async () => {
   btnRunDistributedBenchmark.disabled = true;
   distributedBenchmarkStatus.textContent = 'Iniciando benchmark Dask…';
+  let requestFinished = false;
+  const runRequest = fetch('/api/benchmark/distributed/run', { method: 'POST' })
+    .finally(() => { requestFinished = true; });
+  let polling = null;
   try {
-    const response = await fetch('/api/benchmark/distributed/run', { method: 'POST' });
+    polling = (async () => {
+      await new Promise(resolve => setTimeout(resolve, 400));
+      while (true) {
+        const state = await refreshDistributedBenchmarkStatus();
+        if (requestFinished && !state?.running) break;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    })();
+    const response = await runRequest;
     const data = await response.json();
     if (!response.ok || !data.success) throw new Error(data.error || `HTTP ${response.status}`);
-    await monitorDistributedBenchmark(true);
+    await polling;
+    await refreshDistributedBenchmarkStatus();
+    logClient('✅ Benchmark distribuido Dask completado; resultados y validez de las pruebas actualizados.', 'success');
   } catch (error) {
+    requestFinished = true;
     distributedBenchmarkStatus.textContent = `Falló el benchmark distribuido: ${error.message}`;
     logClient(`Error ejecutando benchmark Dask: ${error.message}`, 'error');
   } finally {
-    btnRunDistributedBenchmark.disabled = distributedBenchmarkPolling;
+    if (polling) await polling;
+    btnRunDistributedBenchmark.disabled = false;
   }
 });
 

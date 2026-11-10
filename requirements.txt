@@ -1,0 +1,4 @@
+# Dependencies for the Vercel Python Dask function.
+cryptography>=41.0,<50.1
+dask[distributed]>=2024.8,<2027
+matplotlib>=3.8,<4
