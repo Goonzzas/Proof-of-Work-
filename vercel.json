@@ -2,7 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "outputDirectory": "public",
   "functions": {
-    "api/**/*.js": { "maxDuration": 30, "regions": ["gru1"] },
-    "api/**/*.py": { "maxDuration": 300, "regions": ["gru1"] }
+    "app.py": { "maxDuration": 300, "regions": ["gru1"] }
   }
 }
