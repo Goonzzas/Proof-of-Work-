@@ -78,6 +78,11 @@ no solapados entre procesos Dask. El benchmark crea el cluster una vez, lo exclu
 del cronómetro y registra tiempos, hash rate, aceleración, eficiencia y validez
 de la prueba en `pow_distributed_benchmark.csv` y `.json`.
 
+También puedes iniciar esta evaluación desde el dashboard con el botón
+**«Ejecutar comparación Dask»**. La tabla muestra el tiempo secuencial y el
+distribuido, aceleración, eficiencia y validez de cada configuración. El CSV se
+puede descargar desde la misma sección.
+
 ### Componentes añadidos
 
 | Archivo | Función |

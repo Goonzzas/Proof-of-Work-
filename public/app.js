@@ -37,6 +37,9 @@ const btnRunBenchmark = document.getElementById('btn-run-benchmark');
 const benchmarkChartImg = document.getElementById('benchmark-chart-img');
 const benchmarkStatusBox = document.getElementById('benchmark-status-box');
 const benchmarkActivitySummary = document.getElementById('benchmark-activity-summary');
+const btnRunDistributedBenchmark = document.getElementById('btn-run-distributed-benchmark');
+const distributedBenchmarkStatus = document.getElementById('distributed-benchmark-status');
+const distributedBenchmarkResults = document.getElementById('distributed-benchmark-results');
 const chartLightbox = document.getElementById('chart-lightbox');
 const chartLightboxContent = document.getElementById('chart-lightbox-content');
 const chartLightboxClose = document.getElementById('chart-lightbox-close');
@@ -567,6 +570,83 @@ btnRunBenchmark.addEventListener('click', async () => {
   }
 });
 
+function renderDistributedBenchmarkResults(payload) {
+  const results = payload?.results || payload;
+  if (!results?.results?.length) return;
+
+  distributedBenchmarkResults.replaceChildren();
+  const table = document.createElement('table');
+  table.className = 'distributed-benchmark-table';
+  const headers = ['Dificultad', 'Workers', 'Secuencial (s)', 'Dask (s)', 'Aceleración', 'Eficiencia', 'Pruebas válidas'];
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  headers.forEach(label => {
+    const th = document.createElement('th');
+    th.textContent = label;
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  results.results.forEach(row => {
+    const tr = document.createElement('tr');
+    const values = [
+      `${row.difficulty_bits} bits`, row.workers,
+      Number(row.sequential_median_seconds).toFixed(4),
+      Number(row.distributed_median_seconds).toFixed(4),
+      `${Number(row.speedup_vs_sequential).toFixed(2)}×`,
+      `${(Number(row.parallel_efficiency) * 100).toFixed(1)}%`,
+      row.all_proofs_valid ? 'Sí' : 'No'
+    ];
+    values.forEach((value, index) => {
+      const td = document.createElement('td');
+      td.textContent = String(value);
+      if (index === 6) td.style.color = row.all_proofs_valid ? 'var(--accent-green)' : 'var(--accent-danger)';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  const wrapper = document.createElement('div');
+  wrapper.className = 'distributed-benchmark-table-wrap';
+  wrapper.appendChild(table);
+  distributedBenchmarkResults.appendChild(wrapper);
+
+  const env = results.environment || {};
+  const envSummary = [env.python && `Python ${env.python}`, env.cpu_count && `${env.cpu_count} CPU(s)`]
+    .filter(Boolean).join(' · ');
+  distributedBenchmarkStatus.textContent = `Resultados: ${results.results.length} configuraciones · ${envSummary || 'equipo local'}.`;
+}
+
+async function loadDistributedBenchmarkResults() {
+  try {
+    const response = await fetch('/api/benchmark/distributed/status');
+    const state = await response.json();
+    if (state.results) renderDistributedBenchmarkResults(state.results);
+    if (state.running) distributedBenchmarkStatus.textContent = 'El benchmark distribuido está ejecutándose en el servidor…';
+  } catch (error) {
+    distributedBenchmarkStatus.textContent = `No se pudo consultar el benchmark: ${error.message}`;
+  }
+}
+
+btnRunDistributedBenchmark.addEventListener('click', async () => {
+  btnRunDistributedBenchmark.disabled = true;
+  distributedBenchmarkStatus.textContent = 'Ejecutando 7 repeticiones por dificultad y configuración. Puede tardar un poco…';
+  try {
+    const response = await fetch('/api/benchmark/distributed/run', { method: 'POST' });
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.error || `HTTP ${response.status}`);
+    renderDistributedBenchmarkResults(data.results);
+    logClient('✅ Benchmark distribuido Dask completado; resultados y validez de las pruebas actualizados.', 'success');
+  } catch (error) {
+    distributedBenchmarkStatus.textContent = `Falló el benchmark distribuido: ${error.message}`;
+    logClient(`Error ejecutando benchmark Dask: ${error.message}`, 'error');
+  } finally {
+    btnRunDistributedBenchmark.disabled = false;
+  }
+});
+
 // Inicialización
 window.addEventListener('resize', setupCanvas);
 setupCanvas();
@@ -574,3 +654,4 @@ setInterval(fetchMetrics, 1000);
 fetchMetrics();
 setInterval(fetchBlockchain, 1500);
 fetchBlockchain();
+loadDistributedBenchmarkResults();

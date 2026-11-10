@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const url = require('url');
-const { exec, spawn } = require('child_process');
+const { exec, execFile, spawn } = require('child_process');
 
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = crypto.randomBytes(32).toString('hex'); // Llave privada de firma HMAC
@@ -23,6 +23,8 @@ let blockchainFlushTimer = null;
 let blockchainMining = false;
 let blockchainLastError = null;
 let blockchainDroppedEvents = 0;
+let distributedBenchmarkRunning = false;
+let distributedBenchmarkStartedAt = null;
 
 function queueBlockchainEvent(event) {
   if (blockchainQueue.length >= 500) {
@@ -530,6 +532,66 @@ const server = http.createServer((req, res) => {
       res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: 'Todavía no se ha ejecutado un benchmark.' }));
     }
+    return;
+  }
+
+  // API 7: Benchmark secuencial frente a minería distribuida con Dask
+  if (req.method === 'GET' && pathname === '/api/benchmark/distributed/status') {
+    const resultsPath = path.join(__dirname, 'pow_distributed_benchmark.json');
+    let results = null;
+    if (fs.existsSync(resultsPath)) {
+      try { results = JSON.parse(fs.readFileSync(resultsPath, 'utf8')); } catch (error) {}
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ running: distributedBenchmarkRunning,
+      startedAt: distributedBenchmarkStartedAt, results }));
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/benchmark/distributed/run') {
+    if (distributedBenchmarkRunning) {
+      res.writeHead(409, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: 'El benchmark distribuido ya está ejecutándose.' }));
+      return;
+    }
+    distributedBenchmarkRunning = true;
+    distributedBenchmarkStartedAt = new Date().toISOString();
+    trafficManager.logEvent('DISTRIBUTED_BENCHMARK', 'Iniciando comparación de minería secuencial y Dask.');
+    const script = path.join(__dirname, 'run_distributed_benchmark.py');
+    execFile(PYTHON, [script], { cwd: __dirname, timeout: 15 * 60 * 1000, maxBuffer: 2 * 1024 * 1024 },
+      (error, stdout, stderr) => {
+        distributedBenchmarkRunning = false;
+        if (error) {
+          trafficManager.logEvent('DISTRIBUTED_BENCHMARK_FAILED', 'La comparación distribuida no pudo completarse.');
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: (stderr || error.message).slice(0, 2000) }));
+          return;
+        }
+        try {
+          const results = JSON.parse(fs.readFileSync(path.join(__dirname, 'pow_distributed_benchmark.json'), 'utf8'));
+          trafficManager.logEvent('DISTRIBUTED_BENCHMARK_COMPLETE', 'Comparación distribuida completada correctamente.');
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: true, results,
+            csvUrl: '/api/benchmark/distributed.csv' }));
+        } catch (parseError) {
+          trafficManager.logEvent('DISTRIBUTED_BENCHMARK_FAILED', 'No se pudieron leer los resultados del benchmark.');
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: parseError.message }));
+        }
+      });
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/benchmark/distributed.csv') {
+    const csvPath = path.join(__dirname, 'pow_distributed_benchmark.csv');
+    if (!fs.existsSync(csvPath)) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Todavía no se ha ejecutado el benchmark distribuido.' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="pow_distributed_benchmark.csv"' });
+    fs.createReadStream(csvPath).pipe(res);
     return;
   }
 
