@@ -324,7 +324,7 @@ async function fetchMetrics() {
 async function fetchBlockchain() {
   if (!blockchainSummary || !blockchainBlocks) return;
   try {
-    const response = await fetch('/api/blockchain');
+    const response = await fetch('/api/blockchain', { cache: 'no-store' });
     const data = await response.json();
     const status = data.lastError ? `Error: ${data.lastError}` :
       data.mining ? 'Minando un bloque…' : data.queuedEvents ? `${data.queuedEvents} evento(s) en cola…` :
@@ -343,9 +343,17 @@ async function fetchBlockchain() {
       blockchainBlocks.appendChild(blockLine);
       events.forEach(event => {
         const eventLine = document.createElement('div');
-        eventLine.className = 'log-line';
-        const time = event.timestamp ? new Date(event.timestamp * 1000).toLocaleTimeString('es-ES') : '';
-        eventLine.textContent = `  └ ${time} · ${event.type || 'EVENTO'} · ${event.message || event.endpoint || ''}`;
+        const metadata = event.metadata || {};
+        const type = metadata.type || event.type || event.kind || 'EVENTO';
+        eventLine.className = `log-line ${type === 'VERIFIED' ? 'success' : type === 'REJECTED' || type === 'REPLAY_ATTEMPT' ? 'error' : ''}`;
+        const timestamp = metadata.timestamp || event.timestamp;
+        const time = timestamp ? new Date(timestamp * 1000).toLocaleTimeString('es-ES') : '';
+        const eventId = metadata.eventId ?? event.eventId;
+        const clientId = metadata.clientId || event.clientId;
+        const message = metadata.message || event.message || metadata.endpoint || event.endpoint || '';
+        const details = [time, type, eventId != null ? `evento ${eventId}` : '', clientId ? `cliente ${clientId}` : '', message]
+          .filter(Boolean).join(' · ');
+        eventLine.textContent = `  └ ${details}`;
         blockchainBlocks.appendChild(eventLine);
       });
     });
