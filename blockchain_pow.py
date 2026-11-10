@@ -272,6 +272,46 @@ def mine_distributed(block: Block, workers: int = 4, batch_size: int = 50_000,
             cluster.close()
 
 
+def mine_distributed_threaded(block: Block, workers: int = 4,
+                              batch_size: int = 50_000) -> dict[str, Any]:
+    """Mine disjoint nonce ranges as Dask tasks on a local thread scheduler.
+
+    This mode avoids opening scheduler sockets or starting subprocesses, which
+    serverless hosts may restrict. The full Dask distributed cluster remains
+    available through :func:`mine_distributed` for local or remote workers.
+    """
+    if workers < 1 or batch_size < 1:
+        raise ValueError("workers y batch_size deben ser positivos")
+    try:
+        from dask import compute, delayed
+    except ImportError as exc:
+        raise RuntimeError("Falta Dask. Instala las dependencias con: pip install -r requirements-distributed.txt") from exc
+
+    header = block.header()
+    started = time.perf_counter()
+    batch = 0
+    total_hashes = 0
+    while True:
+        tasks = []
+        for worker_id in range(workers):
+            lo = (batch * workers + worker_id) * batch_size
+            tasks.append(delayed(_mine_interval)(header, lo, lo + batch_size))
+        batch_results = list(compute(*tasks, scheduler="threads", num_workers=workers))
+        solutions = [result for result in batch_results if result is not None]
+        for result in batch_results:
+            total_hashes += result["hashes_tested"] if result else batch_size
+        if solutions:
+            result = min(solutions, key=lambda item: item["nonce"])
+            block.nonce = result["nonce"]
+            elapsed = time.perf_counter() - started
+            result.update({"elapsed_seconds": elapsed, "hashes_tested": total_hashes,
+                           "workers": workers, "batch_size": batch_size,
+                           "hash_rate": total_hashes / max(elapsed, 1e-9),
+                           "scheduler": "dask-threads"})
+            return result
+        batch += 1
+
+
 def _mine_interval(header: dict[str, Any], start: int, stop: int) -> dict[str, Any] | None:
     """Dask worker function; each submitted interval is disjoint."""
     difficulty = header["difficulty_bits"]
