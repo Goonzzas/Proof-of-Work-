@@ -20,8 +20,7 @@ import matplotlib.pyplot as plt
 from dask.distributed import Client, LocalCluster
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from blockchain_pow import Block, mine_distributed, mine_sequential
 from pow_crypto import (calculate_asymmetry_ratio, generate_pow_challenge,
@@ -212,9 +211,7 @@ def dask_csv():
 
 @app.get("/api/benchmark/csv")
 def benchmark_csv():
-    path = ROOT / "public" / "pow_benchmark_results.csv"
-    return Response(path.read_text(encoding="utf-8"), media_type="text/csv; charset=utf-8",
-                    headers={"Content-Disposition": "attachment; filename=pow_benchmark_results.csv"})
+    return RedirectResponse("/pow_benchmark_results.csv", status_code=307)
 
 
 @app.get("/api/benchmark/activity")
@@ -230,6 +227,4 @@ def benchmark_status():
     return {"running": False, "results": None}
 
 
-# Vercel runs this ASGI application for API routes. Static files are mounted
-# last so API paths above always win, while the dashboard stays at `/`.
-app.mount("/", StaticFiles(directory=ROOT / "public", html=True), name="public")
+# Vercel serves the dashboard from outputDirectory; this ASGI app owns API routes.
