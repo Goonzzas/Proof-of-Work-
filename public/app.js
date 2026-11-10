@@ -36,7 +36,8 @@ const btnSimStop = document.getElementById('btn-sim-stop');
 const btnRunBenchmark = document.getElementById('btn-run-benchmark');
 const benchmarkChartImg = document.getElementById('benchmark-chart-img');
 const benchmarkStatusBox = document.getElementById('benchmark-status-box');
-const benchmarkActivitySummary = document.getElementById('benchmark-activity-summary');
+const benchmarkResults = document.getElementById('benchmark-results');
+const benchmarkCsvDownload = document.getElementById('benchmark-csv-download');
 const btnRunDistributedBenchmark = document.getElementById('btn-run-distributed-benchmark');
 const distributedBenchmarkStatus = document.getElementById('distributed-benchmark-status');
 const distributedBenchmarkResults = document.getElementById('distributed-benchmark-results');
@@ -557,41 +558,78 @@ selectDifficulty.addEventListener('change', async () => {
 });
 
 // 6. EJECUCIÓN DE BENCHMARK PYTHON
+function renderCryptoBenchmarkResults(rows) {
+  const columns = [
+    ['bits', 'Dificultad'], ['hexZeros', 'Ceros hex'], ['expectedHashes', 'Hashes esperados'],
+    ['avgHashes', 'Hashes probados'], ['avgClientMs', 'Minado (ms)'],
+    ['avgServerMs', 'Verificación (ms)'], ['hashRate', 'Hash/s'], ['asymmetryRatio', 'Asimetría (×)']
+  ];
+  benchmarkResults.replaceChildren();
+  const table = document.createElement('table');
+  table.className = 'distributed-benchmark-table';
+  const thead = document.createElement('thead');
+  const header = document.createElement('tr');
+  columns.forEach(([, label]) => {
+    const cell = document.createElement('th');
+    cell.textContent = label;
+    header.appendChild(cell);
+  });
+  thead.appendChild(header);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    columns.forEach(([key]) => {
+      const td = document.createElement('td');
+      const value = row[key];
+      td.textContent = typeof value === 'number' ? value.toLocaleString('es-ES') : String(value ?? '');
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  const wrapper = document.createElement('div');
+  wrapper.className = 'distributed-benchmark-table-wrap';
+  wrapper.appendChild(table);
+  benchmarkResults.appendChild(wrapper);
+
+  const csv = [columns.map(([, label]) => label), ...rows.map(row => columns.map(([key]) => row[key]))]
+    .map(line => line.map(value => `"${String(value ?? '').replaceAll('"', '""')}"`).join(','))
+    .join('\r\n');
+  if (benchmarkCsvDownload.dataset.objectUrl) URL.revokeObjectURL(benchmarkCsvDownload.dataset.objectUrl);
+  const objectUrl = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }));
+  benchmarkCsvDownload.href = objectUrl;
+  benchmarkCsvDownload.dataset.objectUrl = objectUrl;
+  benchmarkCsvDownload.style.display = 'inline-block';
+}
+
 btnRunBenchmark.addEventListener('click', async () => {
   btnRunBenchmark.disabled = true;
   benchmarkStatusBox.style.display = 'block';
+  benchmarkStatusBox.style.color = 'var(--accent-warning)';
+  benchmarkStatusBox.textContent = '⏳ Ejecutando minado y verificación SHA-256 en Python…';
   logClient('🚀 Ejecutando la comparación de minado y verificación SHA-256 en Python...');
 
   try {
-    const res = await fetch('/api/benchmark/run', { method: 'POST' });
+    const res = await fetch('/api/benchmark/run', { method: 'POST', cache: 'no-store' });
     const data = await res.json();
-    if (data.success) {
+    if (!res.ok || !data.success || !Array.isArray(data.data) || !data.data.length || !data.chartUrl) {
+      throw new Error(data.error || 'La respuesta del servidor no incluye resultados o gráfica.');
+    } else {
       logClient('✅ Benchmark criptográfico Python completado; gráfica y resultados actualizados.', 'success');
       benchmarkChartImg.style.display = 'inline-block';
       benchmarkChartImg.src = data.chartUrl;
-      const activity = data.activityDuringRun;
-      if (activity) {
-        benchmarkActivitySummary.replaceChildren();
-        const heading = document.createElement('strong');
-        heading.textContent = 'Actividad real durante el benchmark';
-        const details = document.createElement('div');
-        details.textContent = `${activity.durationSeconds}s · ${activity.requestsObserved} solicitudes HTTP · ` +
-          `${activity.verifiedPoWs} PoW aceptados · ${activity.rejectedRequests} rechazados · ` +
-          `${activity.replayAttempts} replays · pico ${activity.peakRequestsPerSecond} req/s · ` +
-          `dificultad ${activity.difficultiesObserved.join(', ') || 'sin datos'}`;
-        const note = document.createElement('div');
-        note.textContent = 'Incluye lo que ocurrió mientras corría: usa «Seguro» o inicia una simulación de ataque durante ese intervalo para verlo reflejado.';
-        benchmarkActivitySummary.append(heading, details, note);
-        benchmarkActivitySummary.style.display = 'block';
-      }
-    } else {
-      logClient(`❌ Error en benchmark Python: ${data.error}`, 'error');
+      renderCryptoBenchmarkResults(data.data);
+      benchmarkStatusBox.style.color = 'var(--accent-green)';
+      benchmarkStatusBox.textContent = `✅ Benchmark completado: ${data.data.length} niveles de dificultad. La tabla, el gráfico y el CSV muestran esta ejecución.`;
     }
   } catch (err) {
+    benchmarkStatusBox.style.color = 'var(--accent-danger)';
+    benchmarkStatusBox.textContent = `❌ No se pudo completar el benchmark: ${err.message}`;
     logClient(`Error ejecutando benchmark: ${err.message}`, 'error');
   } finally {
     btnRunBenchmark.disabled = false;
-    benchmarkStatusBox.style.display = 'none';
   }
 });
 
