@@ -125,9 +125,16 @@ def run_crypto_benchmark():
             "asymmetryRatio": calculate_asymmetry_ratio(client_ms, server_ms)})
     figure, axes = plt.subplots(1, 2, figsize=(10, 4), dpi=110)
     bits = [row["bits"] for row in results]
-    axes[0].plot(bits, [row["avgClientMs"] for row in results], "o-", label="Minado cliente")
-    axes[0].plot(bits, [row["avgServerMs"] for row in results], "s--", label="Verificación servidor")
-    axes[0].set_yscale("log"); axes[0].set_xlabel("Dificultad (bits)"); axes[0].set_ylabel("Tiempo (ms)"); axes[0].legend()
+    mining_times = [max(row["avgClientMs"], 0.001) for row in results]
+    verification_times = [max(row["avgServerMs"], 0.001) for row in results]
+    axes[0].plot(mining_times, bits, "o-", label="Minado cliente")
+    axes[0].plot(verification_times, bits, "s--", label="Verificación servidor")
+    axes[0].set_xscale("log")
+    axes[0].set_yticks(bits)
+    axes[0].set_xlabel("Tiempo (ms, escala logarítmica)")
+    axes[0].set_ylabel("Dificultad (bits)")
+    axes[0].set_title("Dificultad según el tiempo")
+    axes[0].legend()
     axes[1].bar([str(bit) for bit in bits], [row["asymmetryRatio"] for row in results])
     axes[1].set_xlabel("Dificultad (bits)"); axes[1].set_ylabel("Relación de asimetría")
     figure.tight_layout()
